@@ -157,7 +157,9 @@
   /* การ์ดทุกใบสูงเท่ากัน ปุ่มใส่ตะกร้าชิดล่างเสมอ */
   .card{display:flex;flex-direction:column}
   .card .body{flex:1;display:flex;flex-direction:column;min-width:0}
-  .card .body .hint{margin-bottom:10px}
+  .card .body .hint{margin-bottom:12px}
+  .card .model{font:500 12.5px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .body{padding-bottom:6px}
   .card .body .addcart{margin-top:auto}
   .hrow .card:hover{transform:translateY(-3px)}
   @media (max-width:560px){.hrow .card{flex-basis:46%;width:46%}}
@@ -228,6 +230,8 @@
   .strip button.cur{border-color:var(--blue);opacity:1}
   .strip img{width:100%;height:100%;object-fit:cover;display:block}
   .dname{font:700 20px 'FC Vision Rounded',system-ui,sans-serif;letter-spacing:-.02em;margin:16px 0 4px}
+  .dmodel{font:500 15px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim);margin:0 0 4px}
+  .dmodel:empty{display:none}
   .dprice{font:700 28px 'FC Vision Rounded',system-ui,sans-serif;color:var(--up);letter-spacing:-.02em}
   .contact{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
   .contact a{flex:1;min-width:140px;text-align:center;text-decoration:none;padding:13px;border-radius:14px;font:600 15px 'FC Vision Rounded',system-ui,sans-serif}
@@ -317,7 +321,7 @@
         <h2 id="catTitle">อะไหล่ทั้งหมด</h2>
         <div class="search">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <input type="text" id="q" placeholder="ค้นหาชื่ออะไหล่ หรือ SKU">
+          <input type="text" id="q" placeholder="ค้นหาชื่ออะไหล่ รุ่นรถ หรือ SKU">
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex:none">
@@ -334,7 +338,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v14.1</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v15</span></div>
   </div>
 </div>
 
@@ -348,6 +352,7 @@
     <div class="viewer" id="viewer"></div>
     <div class="strip" id="strip"></div>
     <div class="dname" id="dName"></div>
+    <div class="dmodel" id="dModel"></div>
     <div class="hint" id="dSku" style="margin:0 0 6px"></div>
     <div class="dprice" id="dPrice"></div>
     <div class="dopts" id="dOpts" hidden></div>
@@ -370,6 +375,10 @@
       <div>
         <div class="label"><span>ชื่ออะไหล่</span></div>
         <input class="in" id="fName" type="text" placeholder="เช่น ไฟหน้า Honda Wave 125i ปี 2018">
+      </div>
+      <div>
+        <div class="label"><span>รุ่นรถ</span><span class="n">ไม่บังคับ</span></div>
+        <input class="in" id="fModel" type="text" maxlength="120" autocomplete="off" placeholder="เช่น Monster 821 / Multistrada 1200 (2010-2014)">
       </div>
       <div>
         <div class="label"><span>SKU / รหัสอะไหล่</span><span class="n">ไม่บังคับ</span></div>
@@ -470,7 +479,7 @@
     </div>
     <div class="search" style="flex:none;min-width:0">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <input type="text" id="pq" placeholder="ค้นหาชื่ออะไหล่ หรือ SKU">
+      <input type="text" id="pq" placeholder="ค้นหาชื่ออะไหล่ รุ่นรถ หรือ SKU">
     </div>
     <div class="picklist" id="pickList"></div>
     <div class="msg" id="pMsg"></div>
@@ -704,6 +713,7 @@ object-assign
           </div>
           <div class="body">
             <div class="name" title="${esc(it.name)}">${esc(it.name)}</div>
+            <div class="model" title="${esc(it.model)}">${it.model ? '🏍 ' + esc(it.model) : '&nbsp;'}</div>
             <div class="price">${priceHTML(it)}</div>
             <div class="hint" style="margin-top:2px">${it.options.length ? it.options.length + ' ตัวเลือก · ' : ''}${it.sold ? 'สินค้าหมด' : 'เหลือ ' + it.stock + ' ชิ้น'}</div>
             ${cartBtnHTML(it)}
@@ -754,11 +764,14 @@ object-assign
   const flat = v => String(v || '').toLowerCase().replace(/[\s\-_.\/]/g, '');
   const match = (it, q) => {
     if (!q) return true;
-    const fq = flat(q);
-    return it.name.toLowerCase().includes(q) || (fq && [it.sku, ...it.options.map(o => o.sku)].some(k => flat(k).includes(fq)));
+    const skus = [it.sku, ...it.options.map(o => o.sku)].map(flat);
+    if (flat(q) && skus.some(k => k.includes(flat(q)))) return true;
+    // ทุกคำที่พิมพ์ต้องเจอในชื่อ รุ่นรถ ตัวเลือก หรือ SKU (เช่น "monster 1200")
+    const text = [it.name, it.model, ...it.options.map(o => o.name)].join(' ').toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(w => text.includes(w) || skus.some(k => k.includes(flat(w))));
   };
   const normItem = i => {
-    i.sku = i.sku || '';
+    i.sku = i.sku || ''; i.model = i.model || '';
     i.is_new = !!i.is_new; i.photos = i.photos || []; i.price = Number(i.price) || 0; i.stock = Math.max(0, Number(i.stock ?? 1) || 0);
     i.options = (Array.isArray(i.options) ? i.options : []).map(o => ({ ...o, price: Number(o.price) || 0, stock: Math.max(0, Number(o.stock) || 0) }));
     if (i.options.length) {
@@ -877,6 +890,7 @@ object-assign
   const openDetail = it => {
     cur = it; ci = 0; drawViewer();
     $('#dName').textContent = it.name;
+    $('#dModel').textContent = it.model ? 'รุ่นรถ: ' + it.model : '';
     $('#dSku').textContent = it.sku ? 'SKU: ' + it.sku : '';
     $('#dPrice').innerHTML = it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
     $('#dOpts').hidden = !it.options.length;
@@ -1129,6 +1143,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     $('#mTitle').textContent = it ? 'แก้ไขอะไหล่' : 'ลงขายอะไหล่';
     $('#fName').value = it ? it.name : '';
     $('#fSku').value = it ? it.sku : '';
+    $('#fModel').value = it ? it.model : '';
     $('#fPrice').value = it && it.price ? Number(it.price).toLocaleString('en-US') : '';
     $('#fStock').value = it ? it.stock : 1;
     $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -1336,7 +1351,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         options.push({ id: o.id, name: o.name.trim(), sku: (o.sku || '').trim(), price: o.price, stock: o.stock, photo });
       }
       btn.innerHTML = '<span class="spin"></span>กำลังบันทึก';
-      const part = { id: editing ? editing.id : uid(), name, sku: $('#fSku').value.trim(), price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
+      const part = { id: editing ? editing.id : uid(), name, model: $('#fModel').value.trim(), sku: $('#fSku').value.trim(), price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
       if (!editing) part.created_at = new Date().toISOString();
       // ส่งช่อง options เฉพาะเมื่อมี/เคยมีตัวเลือก (เว็บยังใช้ได้แม้ยังไม่ได้รัน upgrade-options.sql)
       if (!options.length && !(editing && editing.options.length)) delete part.options;
