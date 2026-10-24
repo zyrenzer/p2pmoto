@@ -131,6 +131,21 @@
   .catrow{display:flex;align-items:center;gap:2px}
   .grip{flex:none;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;padding:6px 2px 6px 4px;color:var(--faint);font-size:15px;line-height:1}
   .catrow.dragging{opacity:.55}
+  .catrow.has-kids .cat .nm::after{content:' ▸';opacity:.5;font-size:11px}
+  .catrow.has-kids.open .cat .nm::after{content:' ▾'}
+  .subwrap{margin:2px 0 6px 18px;padding-left:8px;border-left:2px solid var(--hair)}
+  .catrow.sub .cat{padding:8px 12px;font-size:13.5px;font-weight:500}
+  .catadd.sub{margin:6px 0 2px;padding:0;border-top:none}
+  .catadd.sub .in{padding:7px 10px;font-size:13px}
+  .catadd.sub button{width:32px;font-size:17px}
+  .grid.sectioned{display:block}
+  .subsec{margin:0 0 26px}
+  .subhead{display:flex;align-items:center;gap:12px;margin:0 0 14px;font:700 16px 'FC Vision Rounded',system-ui,sans-serif;color:var(--text)}
+  .subhead::before{content:'';width:4px;height:18px;border-radius:2px;background:var(--blue);flex:none}
+  .subhead::after{content:'';flex:1;height:1px;background:var(--border);order:1}
+  .subhead .n{order:2;font:600 12px 'FC Vision Rounded',system-ui,sans-serif;color:var(--faint)}
+  .pgrip{position:absolute;left:8px;bottom:8px;z-index:3;width:30px;height:30px;border-radius:9px;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+  .card.dragging{opacity:.45;outline:2px dashed var(--blue);outline-offset:2px}
   .catrow.dragging .grip{cursor:grabbing}
   .cat{flex:1;min-width:0;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:10px 12px;border-radius:12px;border:none;background:transparent;color:var(--text);font:600 14px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;transition:background .2s}
   .cat:hover{background:var(--hair)}
@@ -166,6 +181,7 @@
   .card .body .addcart{margin-top:auto}
   .hrow .card:hover{transform:translateY(-3px)}
   @media (max-width:560px){.hrow .card{flex-basis:46%;width:46%}}
+  @media (max-width:820px){.subwrap{display:contents}.catrow.sub .cat{background:color-mix(in srgb,var(--blue) 12%,transparent)}.catadd.sub .in{width:120px}}
   .hrow .empty{flex:1;padding:22px 16px}
   .newbadge{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;background:linear-gradient(135deg,#FF453A,#FF9F0A);color:#fff;font:800 11px 'FC Vision Rounded',system-ui,sans-serif;letter-spacing:.06em;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:2}
   .newtog{position:absolute;top:8px;right:8px;padding:4px 9px;border-radius:999px;border:none;background:rgba(0,0,0,.6);color:#fff;font:700 11px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;z-index:3}
@@ -327,7 +343,7 @@
         <h2 id="catTitle">อะไหล่ทั้งหมด</h2>
         <div class="search">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <input type="text" id="q" placeholder="ค้นหาชื่ออะไหล่ รุ่นรถ หรือ SKU">
+          <input type="text" id="q" placeholder="ค้นหาชื่ออะไหล่ รุ่นรถ หรือ Part Number">
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex:none">
@@ -344,7 +360,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v17</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18</span></div>
   </div>
 </div>
 
@@ -486,7 +502,7 @@
     </div>
     <div class="search" style="flex:none;min-width:0">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <input type="text" id="pq" placeholder="ค้นหาชื่ออะไหล่ รุ่นรถ หรือ SKU">
+      <input type="text" id="pq" placeholder="ค้นหาชื่ออะไหล่ รุ่นรถ หรือ Part Number">
     </div>
     <div class="picklist" id="pickList"></div>
     <div class="msg" id="pMsg"></div>
@@ -569,8 +585,15 @@ object-assign
         r.onsuccess = () => res(r.result); r.onerror = () => res(null);
       } catch { res(null); }
     });
+    // สำรองในหน่วยความจำ ถ้าเบราว์เซอร์ไม่ให้ใช้ IndexedDB (ข้อมูลหายเมื่อรีเฟรช)
+    const mem = {};
+    const memStore = name => {
+      const m = mem[name] || (mem[name] = new Map());
+      return { get: k => ({ result: m.get(k) }), getAll: () => ({ result: [...m.values()] }), getAllKeys: () => ({ result: [...m.keys()] }),
+        put: (v, k) => { m.set(k ?? v.id, v); return {}; }, delete: k => { m.delete(k); return {}; } };
+    };
     const tx = (store, mode, fn) => new Promise(res => {
-      if (!db) return res();
+      if (!db) { const r = fn(memStore(store)); return res(r && r.result); }
       try { const t = db.transaction(store, mode); const r = fn(t.objectStore(store)); t.oncomplete = () => res(r && r.result); t.onerror = () => res(); }
       catch { res(); }
     });
@@ -579,7 +602,7 @@ object-assign
       async session() { try { return sessionStorage.getItem('p2p_demo_seller') === '1'; } catch { return false; } },
       async signIn() { try { sessionStorage.setItem('p2p_demo_seller', '1'); } catch {} },
       async signOut() { try { sessionStorage.removeItem('p2p_demo_seller'); } catch {} },
-      async list() { return (await tx('parts', 'readonly', s => s.getAll())) || []; },
+      async list() { return ((await tx('parts', 'readonly', s => s.getAll())) || []).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))); },
       async upload(blob, path = uid() + '.jpg') { await tx('files', 'readwrite', s => s.put(blob, path)); return path; },
       async removeFiles(paths) { for (const p of [...paths, ...paths.map(TH), ...paths.map(TS)]) { await tx('files', 'readwrite', s => s.delete(p)); blobs.delete(p); } },
       async listThumbs() { return null; },
@@ -588,6 +611,7 @@ object-assign
       async listCats() { return ((await tx('cats', 'readonly', s => s.getAll())) || []).sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.created_at.localeCompare(b.created_at)); },
       async saveCat(c) { await tx('cats', 'readwrite', s => s.put(c)); },
       async saveCats(list) { for (const c of list) await tx('cats', 'readwrite', s => s.put(c)); },
+      async setSorts(list) { for (const { id, sort } of list) { const p = await tx('parts', 'readonly', s => s.get(id)); if (p) await tx('parts', 'readwrite', s => s.put({ ...p, sort })); } },
       async removeCat(id) {
         await tx('cats', 'readwrite', s => s.delete(id));
         for (const p of await this.list()) if (p.category_id === id) await tx('parts', 'readwrite', s => s.put({ ...p, category_id: null }));
@@ -661,6 +685,10 @@ object-assign
     async saveCat(c) { const { error } = await sb.from('categories').upsert(c); if (error) throw error; },
     async saveCats(list) { const { error } = await sb.from('categories').upsert(list); if (error) throw error; },
     async removeCat(id) { const { error } = await sb.from('categories').delete().eq('id', id); if (error) throw error; },
+    async setSorts(list) {
+      const rs = await Promise.all(list.map(({ id, sort }) => sb.from('parts').update({ sort }).eq('id', id)));
+      const bad = rs.find(r => r.error); if (bad) throw bad.error;
+    },
     async patchParts(ids, patch) { if (!ids.length) return; const { error } = await sb.from('parts').update(patch).in('id', ids); if (error) throw error; },
     // ลูกค้าเพิ่มออเดอร์ได้อย่างเดียว อ่านไม่ได้ (จึงไม่ขอข้อมูลคืน)
     async placeOrder(o) { const { error } = await sb.from('orders').insert(o); if (error) throw error; },
@@ -713,10 +741,18 @@ object-assign
 
   // ── grid ──
   const catName = id => (cats.find(c => c.id === id) || {}).name || '';
-  const inCat = it => curCat === '' || (curCat === 'none' ? !catName(it.category_id) : it.category_id === curCat);
-  const cardHTML = it => `
+  // หมวดย่อย: categories.parent_id ชี้ไปหมวดหลัก
+  const catOf = id => cats.find(c => c.id === id);
+  const parentOf = id => { const c = catOf(id); return c && c.parent_id && catOf(c.parent_id) ? c.parent_id : null; };
+  const mains = () => cats.filter(c => !parentOf(c.id));
+  const kids = id => cats.filter(c => parentOf(c.id) === id);
+  const openMain = () => curCat && curCat !== 'none' ? (parentOf(curCat) || curCat) : null;
+  const inCat = it => curCat === '' || (curCat === 'none' ? !catName(it.category_id) : it.category_id === curCat || parentOf(it.category_id) === curCat);
+  const catLabel = id => parentOf(id) ? catName(parentOf(id)) + ' › ' + catName(id) : catName(id);
+  const cardHTML = (it, grip = false) => `
         <div class="card${it.sold ? ' is-sold' : ''}" data-id="${it.id}" tabindex="0">
           <div class="thumb">
+            ${grip ? '<span class="pgrip" data-pgrip title="ลากเพื่อสลับตำแหน่ง" aria-hidden="true">⠿</span>' : ''}
             ${it.photos.length ? tImg(it.photos[0], 'loading="lazy"') : '<div class="none">NO PHOTO</div>'}
             ${it.is_new ? '<span class="newbadge">NEW</span>' : ''}
             ${seller ? `<button class="newtog${it.is_new ? ' on' : ''}" data-new="${it.id}" title="${it.is_new ? 'เอาออกจากอะไหล่เข้าใหม่' : 'เพิ่มเป็นอะไหล่เข้าใหม่'}">${it.is_new ? '× เข้าใหม่' : '+ เข้าใหม่'}</button>` : ''}
@@ -735,18 +771,26 @@ object-assign
     const n = f => items.filter(f).length;
     const none = n(i => !catName(i.category_id));
     const real = id => seller && id && id !== 'none';
-    const row = (id, name, count) => `<div class="catrow"${real(id) ? ` data-cid="${id}"` : ''}>
+    const row = (id, name, count, cls = '', parent = '') => `<div class="catrow${cls}"${real(id) ? ` data-cid="${id}" data-parent="${parent}"` : ''}>
         ${real(id) ? `<span class="grip" data-grip="${id}" title="ลากเพื่อสลับลำดับ" aria-hidden="true">⠿</span>` : ''}
         <button class="cat${curCat === id ? ' on' : ''}" data-cat="${id}"><span class="nm">${esc(name)}</span><span class="n">${count}</span></button>
-        ${seller && id && id !== 'none' ? `<button class="cx" data-catdel="${id}" title="ลบหมวด" aria-label="ลบหมวด ${esc(name)}">×</button>` : ''}
+        ${real(id) ? `<button class="cx" data-catdel="${id}" title="ลบหมวด" aria-label="ลบหมวด ${esc(name)}">×</button>` : ''}
       </div>`;
+    const om = openMain();
+    const subs = id => {
+      if (id !== om) return '';
+      const k = kids(id);
+      const list = k.map(c => row(c.id, c.name, n(i => i.category_id === c.id), ' sub', id)).join('');
+      const add = seller ? `<div class="catadd sub"><input class="in" id="newSub" maxlength="60" placeholder="หมวดย่อยใน ${esc(catName(id))}"><button id="addSub" title="เพิ่มหมวดย่อย" aria-label="เพิ่มหมวดย่อย">+</button></div>` : '';
+      return list || add ? `<div class="subwrap">${list}${add}</div>` : '';
+    };
     $('#side').innerHTML = '<div class="sidehead">หมวดหมู่</div>' +
       row('', 'ทั้งหมด', items.length) +
-      cats.map(c => row(c.id, c.name, n(i => i.category_id === c.id))).join('') +
+      mains().map(c => row(c.id, c.name, n(i => i.category_id === c.id || parentOf(i.category_id) === c.id), (kids(c.id).length ? ' has-kids' : '') + (c.id === om ? ' open' : '')) + subs(c.id)).join('') +
       (cats.length && none ? row('none', 'อื่น ๆ', none) : '') +
-      (seller ? '<div class="catadd"><input class="in" id="newCat" maxlength="60" placeholder="ชื่อหมวดใหม่"><button id="addCat" title="เพิ่มหมวด" aria-label="เพิ่มหมวด">+</button></div>' : '');
+      (seller ? '<div class="catadd"><input class="in" id="newCat" maxlength="60" placeholder="ชื่อหมวดหลักใหม่"><button id="addCat" title="เพิ่มหมวด" aria-label="เพิ่มหมวด">+</button></div>' : '');
     $('#side').hidden = !cats.length && !seller;
-    $('#catTitle').textContent = curCat === '' ? 'อะไหล่ทั้งหมด' : curCat === 'none' ? 'อื่น ๆ' : catName(curCat);
+    $('#catTitle').textContent = curCat === '' ? 'อะไหล่ทั้งหมด' : curCat === 'none' ? 'อื่น ๆ' : catLabel(curCat);
     $('#catBar').hidden = !(seller && curCat && curCat !== 'none');
   };
   const renderNew = () => {
@@ -754,20 +798,33 @@ object-assign
     const list = items.filter(i => i.is_new && inCat(i));
     $('#newSec').hidden = !list.length && !(seller && curCat === '');
     $('#newCount').textContent = list.length ? list.length + ' ชิ้น' : '';
-    $('#newRow').innerHTML = list.length ? list.map(cardHTML).join('')
+    $('#newRow').innerHTML = list.length ? list.map(it => cardHTML(it)).join('')
       : '<div class="empty">ยังไม่มีอะไหล่เข้าใหม่ · กด "+ เข้าใหม่" ที่การ์ด หรือติ๊กในหน้าแก้ไข</div>';
   };
   const render = () => {
     renderSide(); renderNew();
     const q = $('#q').value.trim().toLowerCase();
-    const list = items.filter(it => inCat(it) && match(it, q));
+    const list = items.filter(it => inCat(it) && match(it, q)).sort((a, b) => (a.sort || 0) - (b.sort || 0));
     const g = $('#grid');
+    // ลากสลับได้เฉพาะแอดมิน ในหน้าหมวด และไม่ได้ค้นหาอยู่
+    const grip = seller && curCat !== '' && !q;
+    const k = curCat && curCat !== 'none' && !parentOf(curCat) ? kids(curCat) : [];
+    g.classList.toggle('sectioned', !!(k.length && list.length && !q));
     if (!items.length) {
       g.innerHTML = `<div class="empty"><b>ยังไม่มีอะไหล่ที่ลงขาย</b>${seller ? 'กดปุ่ม + เพื่อเพิ่มรูปอะไหล่และตั้งราคา' : 'แวะมาดูใหม่เร็ว ๆ นี้'}</div>`;
     } else if (!list.length) {
       g.innerHTML = `<div class="empty">${q ? 'ไม่พบอะไหล่ที่ค้นหา' : seller && curCat && curCat !== 'none' ? 'หมวดนี้ยังไม่มีอะไหล่ · กด "เลือกอะไหล่เข้าหมวดนี้"' : 'หมวดนี้ยังไม่มีอะไหล่'}</div>`;
     } else {
-      g.innerHTML = list.map(cardHTML).join('');
+      if (k.length && !q) {
+        // หมวดหลักที่มีหมวดย่อย: แบ่งเป็นช่วง มีเส้นและชื่อหมวดย่อยคั่น
+        const sec = (id, name, arr) => `<section class="subsec">
+            <div class="subhead"><span>${esc(name)}</span><span class="n">${arr.length} ชิ้น</span></div>
+            ${arr.length ? `<div class="grid" data-sec="${id}">${arr.map(it => cardHTML(it, grip)).join('')}</div>` : '<div class="empty" style="padding:18px">ยังไม่มีอะไหล่ในหมวดย่อยนี้</div>'}
+          </section>`;
+        const direct = list.filter(it => it.category_id === curCat);
+        g.innerHTML = (direct.length ? sec(curCat, catName(curCat) + ' (ทั่วไป)', direct) : '') +
+          k.map(c => [c, list.filter(it => it.category_id === c.id)]).filter(([, arr]) => arr.length || seller).map(([c, arr]) => sec(c.id, c.name, arr)).join('');
+      } else g.innerHTML = list.map(it => cardHTML(it, grip)).join('');
     }
     $('#count').textContent = list.length + ' ชิ้น';
     $('#fcount').textContent = items.filter(i => !i.sold).length + ' รายการที่มีของ';
@@ -802,6 +859,7 @@ object-assign
   };
   $('#q').oninput = render;
   const pick = e => {
+    if (e.target.closest('[data-pgrip]')) return;
     const nb = e.target.closest('[data-new]');
     if (nb) { e.stopPropagation(); toggleNew(nb.dataset.new); return; }
     const o = e.target.closest('[data-opts]');
@@ -829,20 +887,29 @@ object-assign
     try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
     catch (e) { alert('เพิ่มหมวดไม่สำเร็จ: ' + (e.message || e)); }
   };
+  const addSub = async () => {
+    const f = $('#newSub'), name = f.value.trim(), parent = openMain();
+    if (!name) { f.focus(); return; }
+    if (kids(parent).some(c => c.name === name)) { alert('มีหมวดย่อยนี้แล้ว'); return; }
+    const c = { id: uid(), name, parent_id: parent, sort: kids(parent).reduce((m, x) => Math.max(m, x.sort || 0), 0) + 1, created_at: new Date().toISOString() };
+    try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
+    catch (e) { alert('เพิ่มหมวดย่อยไม่สำเร็จ: ' + (e.message || e)); }
+  };
   $('#side').addEventListener('click', async e => {
     const d = e.target.closest('[data-catdel]');
     if (d) {
-      const id = d.dataset.catdel;
-      if (!confirm(`ลบหมวด "${catName(id)}"?\nอะไหล่ในหมวดนี้จะไม่ถูกลบ แค่ย้ายไปอยู่ "อื่น ๆ"`)) return;
-      try { await B.removeCat(id); if (curCat === id) curCat = ''; await reload(); }
+      const id = d.dataset.catdel, k = kids(id);
+      if (!confirm(`ลบหมวด "${catName(id)}"?${k.length ? `\nหมวดย่อย ${k.length} หมวดข้างในจะถูกลบด้วย` : ''}\nอะไหล่ในหมวดนี้จะไม่ถูกลบ แค่ย้ายไปอยู่ "อื่น ๆ"`)) return;
+      try { for (const c of k) await B.removeCat(c.id); await B.removeCat(id); if (curCat === id || k.some(c => c.id === curCat)) curCat = ''; await reload(); }
       catch (err) { alert('ลบหมวดไม่สำเร็จ: ' + (err.message || err)); }
       return;
     }
     if (e.target.closest('#addCat')) { addCat(); return; }
+    if (e.target.closest('#addSub')) { addSub(); return; }
     const c = e.target.closest('[data-cat]');
     if (c) { curCat = c.dataset.cat; render(); }
   });
-  $('#side').addEventListener('keydown', e => { if (e.target.id === 'newCat' && e.key === 'Enter') addCat(); });
+  $('#side').addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.id === 'newCat') addCat(); if (e.target.id === 'newSub') addSub(); });
   // ลากที่ ⠿ เพื่อสลับลำดับหมวด (ใช้ได้ทั้งเมาส์และนิ้ว)
   let drag = null;
   $('#side').addEventListener('pointerdown', e => {
@@ -855,8 +922,10 @@ object-assign
   window.addEventListener('pointermove', e => {
     if (!drag) return;
     const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (drag.card) return dragCard(e);
     const over = el && el.closest('.catrow[data-cid]');
-    if (!over || over === drag.row) return;
+    // สลับได้เฉพาะในกลุ่มเดียวกัน (หมวดหลักด้วยกัน หรือหมวดย่อยในหมวดเดียวกัน)
+    if (!over || over === drag.row || over.dataset.parent !== drag.row.dataset.parent) return;
     const r = over.getBoundingClientRect(), me = drag.row.getBoundingClientRect();
     const horiz = Math.abs(r.top - me.top) < 4;
     const before = horiz ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
@@ -864,13 +933,46 @@ object-assign
   });
   const endDrag = async () => {
     if (!drag) return;
+    if (drag.card) return endCardDrag();
+    const parent = drag.row.dataset.parent;
     drag.row.classList.remove('dragging'); drag = null;
-    const order = [...$('#side').querySelectorAll('.catrow[data-cid]')].map(r => r.dataset.cid);
-    if (order.join() === cats.map(c => c.id).join()) return;
-    cats = order.map((id, i) => ({ ...cats.find(c => c.id === id), sort: i + 1 }));
+    const order = [...$('#side').querySelectorAll('.catrow[data-cid]')].filter(r => r.dataset.parent === parent).map(r => r.dataset.cid);
+    const group = (parent ? kids(parent) : mains()).map(c => c.id);
+    if (order.join() === group.join()) return;
+    const changed = order.map((id, i) => ({ ...catOf(id), sort: i + 1 }));
+    cats = cats.map(c => changed.find(x => x.id === c.id) || c).sort((a, b) => (a.sort || 0) - (b.sort || 0));
     render();
-    try { await B.saveCats(cats); }
+    try { await B.saveCats(changed); }
     catch (err) { alert('บันทึกลำดับไม่สำเร็จ: ' + (err.message || err)); reload(); }
+  };
+  // ลากที่ ⠿ บนรูปสินค้า เพื่อสลับตำแหน่งสินค้าในหมวด
+  $('#grid').addEventListener('pointerdown', e => {
+    const g = e.target.closest('[data-pgrip]'); if (!g) return;
+    e.preventDefault(); e.stopPropagation();
+    drag = { card: g.closest('.card') };
+    drag.card.classList.add('dragging');
+    try { g.setPointerCapture(e.pointerId); } catch {}
+  });
+  const dragCard = e => {
+    // ลากใกล้ขอบจอบน/ล่าง ให้เลื่อนหน้าตาม
+    if (e.clientY < 70) window.scrollBy(0, -14); else if (e.clientY > innerHeight - 70) window.scrollBy(0, 14);
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const over = el && el.closest('.card');
+    if (!over || over === drag.card || over.parentNode !== drag.card.parentNode) return;
+    const r = over.getBoundingClientRect();
+    const before = e.clientY < r.top ? true : e.clientY > r.bottom ? false : e.clientX < r.left + r.width / 2;
+    over.parentNode.insertBefore(drag.card, before ? over : over.nextSibling);
+  };
+  const endCardDrag = async () => {
+    const box = drag.card.parentNode;
+    drag.card.classList.remove('dragging'); drag = null;
+    const ids = [...box.querySelectorAll(':scope > .card')].map(c => c.dataset.id);
+    const changed = ids.map((id, i) => ({ id, sort: i + 1 })).filter(x => (items.find(i => i.id === x.id) || {}).sort !== x.sort);
+    if (!changed.length) return;
+    changed.forEach(x => { const it = items.find(i => i.id === x.id); if (it) it.sort = x.sort; });
+    render();
+    try { await B.setSorts(changed); }
+    catch (err) { alert('บันทึกตำแหน่งไม่สำเร็จ: ' + (err.message || err)); reload(); }
   };
   window.addEventListener('pointerup', endDrag);
   window.addEventListener('pointercancel', endDrag);
@@ -1192,7 +1294,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     $('#fModel').value = it ? it.model : '';
     $('#fPrice').value = it && it.price ? Number(it.price).toLocaleString('en-US') : '';
     $('#fStock').value = it ? it.stock : 1;
-    $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + mains().map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(k.name)}</option>`).join('')).join('');
     $('#fCat').value = it ? (catName(it.category_id) ? it.category_id : '') : (curCat && curCat !== 'none' ? curCat : '');
     $('#fNew').checked = it ? !!it.is_new : true;
     $('#delBtn').hidden = !editing;
@@ -1416,6 +1518,39 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     catch (e) { $('#msg').textContent = 'ลบไม่สำเร็จ: ' + (e.message || e); }
   };
 
+  // ข้อมูลจำลองสำหรับหน้าตัวอย่าง (เฉพาะโหมดตัวอย่าง ไม่มีผลกับเว็บจริง)
+  const seedDemo = async () => {
+    if ((await B.list()).length || (await B.listCats()).length) return;
+    const pic = (t1, t2, bg) => new Promise(r => {
+      const c = document.createElement('canvas'); c.width = c.height = 600; const g = c.getContext('2d');
+      const gr = g.createLinearGradient(0, 0, 600, 600); gr.addColorStop(0, bg); gr.addColorStop(1, '#111'); g.fillStyle = gr; g.fillRect(0, 0, 600, 600);
+      g.fillStyle = '#d0021b'; g.fillRect(330, 40, 240, 70); g.fillStyle = '#fff'; g.font = 'bold 44px sans-serif'; g.fillText('DUCATI', 350, 92);
+      g.font = 'bold 50px sans-serif'; g.fillText(t1, 40, 330); g.font = '34px sans-serif'; g.fillText(t2, 40, 390);
+      c.toBlob(b => r(b), 'image/jpeg', 0.9);
+    });
+    const now = Date.now(), at = i => new Date(now - i * 60000).toISOString();
+    const C1 = { id: uid(), name: 'สายพาน', sort: 1, created_at: at(90) }, C2 = { id: uid(), name: 'ระบบเบรก', sort: 2, created_at: at(89) }, C3 = { id: uid(), name: 'น้ำมัน & ไส้กรอง', sort: 3, created_at: at(88) };
+    const S = (p, name, n) => ({ id: uid(), name, parent_id: p.id, sort: n, created_at: at(80 - n) });
+    const s1 = S(C1, 'Multistrada', 1), s2 = S(C1, 'Monster', 2), s3 = S(C1, 'Panigale', 3), s4 = S(C2, 'ผ้าเบรก', 1), s5 = S(C2, 'มือเบรก', 2);
+    for (const c of [C1, C2, C3, s1, s2, s3, s4, s5]) await B.saveCat(c);
+    const P = [['สายพาน Multistrada 1200', 'Multistrada 1200 (2010-2014)', '73740251B', 6890, s1, '#2b2b2b', true],
+      ['สายพาน Multistrada 1200 DVT', 'Multistrada 1200 DVT', '73740321B', 7719, s1, '#3a3a3a'],
+      ['สายพาน Multistrada 950', 'Multistrada 950 / V2', '73740251B', 6890, s1, '#333'],
+      ['สายพาน Monster 821', 'Monster 821', '73740251B', 4390, s2, '#552222', true],
+      ['สายพาน Monster 937', 'Monster 937', '73740251B', 6890, s2, '#4a2a2a'],
+      ['สายพาน Panigale 899', 'Panigale 899 / 1199', '73740231A', 5900, s3, '#223355'],
+      ['ผ้าเบรกหน้า Brembo', 'Monster / Multistrada', '61340381A', 2950, s4, '#224433', true],
+      ['มือเบรก Panigale', 'Panigale V4', '62941181A', 3500, s5, '#333344'],
+      ['กรองน้ำมันเครื่อง DUCATI', 'ใช้ได้หลายรุ่น', '44440031C', 943, C3, '#554411'],
+      ['ยางรองโซ่ Monster 821', 'Monster 821 / 1200', '4471-A11', 1000, C1, '#3b3b3b']];
+    let i = 0;
+    for (const [name, model, sku, price, cat, bg, isNew] of P) {
+      const b = await pic(name.split(' ').slice(0, 2).join(' '), model, bg);
+      const path = await B.upload(b); urls.set(path, URL.createObjectURL(b));
+      await B.save({ id: uid(), name, model, sku, price, stock: 2, photos: [path], options: [], category_id: cat.id, is_new: !!isNew, sort: 0, created_at: at(i++) });
+    }
+  };
+
   (async () => {
     // แสดงปุ่มแอดมินทันที ไม่ต้องรอเชื่อมต่อ
     setSeller(false);
@@ -1424,6 +1559,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     const timeout = new Promise(r => setTimeout(() => r(false), 5000));
     setSeller(await Promise.race([B.session().catch(() => false), timeout]));
     if (live) sb.auth.onAuthStateChange((_e, s) => { setSeller(!!s); render(); backfillThumbs(); });
+    if (!live && C.DEMO_SEED) await seedDemo();
     await reload();
   })();
 })();
