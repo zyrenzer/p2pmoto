@@ -233,6 +233,9 @@
   .strip button.cur{border-color:var(--blue);opacity:1}
   .strip img{width:100%;height:100%;object-fit:cover;display:block}
   .dname{font:700 20px 'FC Vision Rounded',system-ui,sans-serif;letter-spacing:-.02em;margin:16px 0 4px}
+  @media (max-width:420px){.contact a{min-width:0;white-space:nowrap;font-size:14px;padding:12px 8px}}
+  #dSeller .btn{flex:1 1 0;white-space:nowrap;padding-left:8px;padding-right:8px}
+  #dCopy{background:transparent;border:1px solid var(--blue);color:var(--blue)}
   .dmodel{font:500 15px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim);margin:0 0 4px}
   .dmodel:empty{display:none}
   .dprice{font:700 28px 'FC Vision Rounded',system-ui,sans-serif;color:var(--up);letter-spacing:-.02em}
@@ -341,7 +344,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v16</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v17</span></div>
   </div>
 </div>
 
@@ -363,6 +366,7 @@
     <div class="contact" id="dContact"></div>
     <div class="actions" id="dSeller" style="margin-top:16px" hidden>
       <button class="btn primary" id="dEdit">✎ แก้ไขรายการนี้</button>
+      <button class="btn" id="dCopy">⧉ คัดลอกรายการนี้</button>
     </div>
   </div>
 </div>
@@ -676,6 +680,8 @@ object-assign
     const s = url(TS(p)), m = url(TH(p));
     return `<img src="${m || url(p)}" ${s && m ? `srcset="${s} 320w, ${m} 640w" sizes="${sizes}"` : ''} data-full="${url(p)}" onerror="if(this.dataset.full&&this.src!==this.dataset.full){this.removeAttribute('srcset');this.src=this.dataset.full}" alt="" ${extra}>`;
   };
+  // รูปที่สินค้าอื่นยังใช้อยู่ (จากการคัดลอก) ห้ามลบ
+  const unshared = (paths, id) => paths.filter(p => !items.some(i => i.id !== id && allPhotos(i).includes(p)));
   const allPhotos = it => [...(it.photos || []), ...(it.options || []).map(o => o.photo).filter(Boolean)];
   const resolveUrls = async list => { for (const it of list) for (const p of allPhotos(it)) if (!urls.has(p)) { urls.set(p, await B.urlFor(p)); urls.set(TH(p), await B.urlFor(TH(p))); urls.set(TS(p), await B.urlFor(TS(p))); } };
 
@@ -940,6 +946,7 @@ object-assign
     show('detail');
   };
   $('#dEdit').onclick = () => { hide('detail'); openEditor(cur); };
+  $('#dCopy').onclick = () => { hide('detail'); openEditor(cur, true); };
   const drawDetailCart = () => {
     const b = $('#dCart');
     b.hidden = !!cur.sold;
@@ -1175,10 +1182,11 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   // opts: [{ id, name, price, stock, photo: { path } | { blob, preview } | null }]
   let opts = [], optTarget = -1;
   const prev = p => p.preview || url(TH(p.path)) || url(p.path);
-  const openEditor = it => {
-    editing = it || null;
+  // copy = เปิดหน้าลงขายใหม่ โดยกรอกข้อมูลและใช้รูปชุดเดิมร่วมกัน (ไม่อัปโหลดซ้ำ)
+  const openEditor = (it, copy = false) => {
+    editing = it && !copy ? it : null;
     photos = it ? it.photos.map(path => ({ path })) : [];
-    $('#mTitle').textContent = it ? 'แก้ไขอะไหล่' : 'ลงขายอะไหล่';
+    $('#mTitle').textContent = copy ? 'ลงขายอะไหล่ (คัดลอกจากรายการเดิม)' : it ? 'แก้ไขอะไหล่' : 'ลงขายอะไหล่';
     $('#fName').value = it ? it.name : '';
     $('#fSku').value = it ? it.sku : '';
     $('#fModel').value = it ? it.model : '';
@@ -1187,9 +1195,9 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
     $('#fCat').value = it ? (catName(it.category_id) ? it.category_id : '') : (curCat && curCat !== 'none' ? curCat : '');
     $('#fNew').checked = it ? !!it.is_new : true;
-    $('#delBtn').hidden = !it;
+    $('#delBtn').hidden = !editing;
     $('#msg').textContent = '';
-    opts = it ? it.options.map(o => ({ ...o, photo: o.photo ? { path: o.photo } : null })) : [];
+    opts = it ? it.options.map(o => ({ ...o, id: copy ? uid().slice(0, 8) : o.id, photo: o.photo ? { path: o.photo } : null })) : [];
     renderPhotos(); renderOpts(); show('editor');
     setTimeout(() => $('#fName').focus(), 50);
   };
@@ -1394,7 +1402,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
       // ส่งช่อง options เฉพาะเมื่อมี/เคยมีตัวเลือก (เว็บยังใช้ได้แม้ยังไม่ได้รัน upgrade-options.sql)
       if (!options.length && !(editing && editing.options.length)) delete part.options;
       await B.save(part);
-      if (editing) { const keep = allPhotos(part); await B.removeFiles(allPhotos(editing).filter(p => !keep.includes(p))); }
+      if (editing) { const keep = allPhotos(part); await B.removeFiles(unshared(allPhotos(editing).filter(p => !keep.includes(p)), editing.id)); }
       hide('editor'); await reload();
     } catch (e) {
       await B.removeFiles(uploaded).catch(() => {});
@@ -1404,7 +1412,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   };
   $('#delBtn').onclick = async () => {
     if (!editing || !confirm('ลบรายการนี้และรูปทั้งหมด?')) return;
-    try { await B.remove(editing.id); await B.removeFiles(allPhotos(editing)); hide('editor'); await reload(); }
+    try { await B.remove(editing.id); await B.removeFiles(unshared(allPhotos(editing), editing.id)); hide('editor'); await reload(); }
     catch (e) { $('#msg').textContent = 'ลบไม่สำเร็จ: ' + (e.message || e); }
   };
 
