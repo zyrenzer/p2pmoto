@@ -151,7 +151,9 @@
   }
   .newsec{margin:0 0 26px}
   .hrow{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 16px;scroll-snap-type:x proximity}
-  .hrow .card{flex:0 0 200px;width:200px;min-width:0;scroll-snap-align:start}
+  .hrow .card{flex:0 0 240px;width:240px;min-width:0;scroll-snap-align:start}
+  /* การ์ดใหญ่ขึ้นบนจอคอม (แบบ Shopee) ตัวหนังสือในรูปอ่านง่ายขึ้น */
+  @media (min-width:561px){.grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}}
   /* การ์ดทุกใบสูงเท่ากัน ปุ่มใส่ตะกร้าชิดล่างเสมอ */
   .card{display:flex;flex-direction:column}
   .card .body{flex:1;display:flex;flex-direction:column;min-width:0}
@@ -328,7 +330,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v10</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v11</span></div>
   </div>
 </div>
 
@@ -480,8 +482,8 @@
   const fmtTHB = n => Math.round(n || 0).toLocaleString('en-US') + '<span class="baht">บาท</span>';
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   // UUID v4 (randomUUID ใช้ได้เฉพาะ https จึงมีสำรองด้วย getRandomValues)
-  // รูปย่อสำหรับการ์ด (ด้านยาวไม่เกิน 500px) เก็บไว้ที่ t/<ชื่อรูป> · จอคอมย่อรูปใหญ่ 1400px ลงเหลือ 200px แล้วตัวหนังสือแตก
-  const TH = p => 't/' + p, THUMB_SIDE = 500;
+  // รูปย่อสำหรับการ์ด (ด้านยาวไม่เกิน 500px และเพิ่มความคม) เก็บไว้ที่ ts/<ชื่อรูป> · จอคอมย่อรูปใหญ่ 1400px ลงเหลือ 200px แล้วตัวหนังสือแตก
+  const TH = p => 'ts/' + p, THUMB_SIDE = 500;
   const uid = () => crypto.randomUUID ? crypto.randomUUID()
     : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
 
@@ -596,9 +598,9 @@
       const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
       if (error) throw error; return path;
     },
-    async removeFiles(paths) { if (paths.length) await sb.storage.from(BUCKET).remove([...paths, ...paths.map(TH)]); },
+    async removeFiles(paths) { if (paths.length) await sb.storage.from(BUCKET).remove([...paths, ...paths.map(TH), ...paths.map(p => 't/' + p)]); },
     async listThumbs() {
-      const { data, error } = await sb.storage.from(BUCKET).list('t', { limit: 10000 });
+      const { data, error } = await sb.storage.from(BUCKET).list('ts', { limit: 10000 });
       if (error) throw error; return new Set((data || []).map(f => f.name));
     },
     async save(part) { const { error } = await sb.from('parts').upsert(part); if (error) throw error; },
@@ -1141,6 +1143,18 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     img.src = u;
   });
   // ย่อทีละครึ่งจนใกล้ขนาดเป้าหมาย ภาพจะคมกว่าย่อครั้งเดียว
+  // เพิ่มความคมเล็กน้อยหลังย่อ (unsharp แบบ 3x3) ให้ตัวหนังสือในรูปชัด
+  const sharpen = (g, w, h, a) => {
+    const im = g.getImageData(0, 0, w, h), s = im.data, o = new Uint8ClampedArray(s);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      for (let k = 0; k < 3; k++) {
+        const n = s[i - 4 + k] + s[i + 4 + k] + s[i - w * 4 + k] + s[i + w * 4 + k];
+        o[i + k] = s[i + k] + a * (4 * s[i + k] - n);
+      }
+    }
+    im.data.set(o); g.putImageData(im, 0, 0);
+  };
   const thumbOf = src => new Promise(res => {
     const go = img => {
       let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, cur = img;
@@ -1151,7 +1165,8 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
       }
       const c = document.createElement('canvas'); c.width = tw; c.height = th;
       const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, tw, th);
-      c.toBlob(b => res(b), 'image/jpeg', 0.88);
+      sharpen(g, tw, th, 0.35);
+      c.toBlob(b => res(b), 'image/jpeg', 0.9);
     };
     const img = new Image(); img.crossOrigin = 'anonymous';
     img.onload = () => go(img); img.onerror = () => res(null);
