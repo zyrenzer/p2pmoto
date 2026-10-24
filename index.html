@@ -329,7 +329,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v13</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v13.1</span></div>
   </div>
 </div>
 
@@ -675,7 +675,6 @@ object-assign
             ${it.photos.length ? tImg(it.photos[0], 'loading="lazy"') : '<div class="none">NO PHOTO</div>'}
             ${it.is_new ? '<span class="newbadge">NEW</span>' : ''}
             ${seller ? `<button class="newtog${it.is_new ? ' on' : ''}" data-new="${it.id}" title="${it.is_new ? 'เอาออกจากอะไหล่เข้าใหม่' : 'เพิ่มเป็นอะไหล่เข้าใหม่'}">${it.is_new ? '× เข้าใหม่' : '+ เข้าใหม่'}</button>` : ''}
-            ${it.photos.length > 1 ? `<div class="pill">📷 ${it.photos.length}</div>` : ''}
             ${it.sold ? '<div class="sold"><span>สินค้าหมด</span></div>' : ''}
           </div>
           <div class="body">
