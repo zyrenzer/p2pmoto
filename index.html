@@ -11,6 +11,7 @@
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4cGx3bmpudXB5d2NuZHlkeGdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MjMyNzQsImV4cCI6MjEwODM5OTI3NH0.Usy6E_fm-GaaiMQd-p7N9WkbXHiSQrEbhUD6Qalvsoo',
     SHOP_NAME: 'P2P Moto',
     SHOP_SUB: 'จำหน่ายอะไหล่แท้ DUCATI เท่านั้น',
+    SHIPPING: 50,            // ค่าจัดส่งต่อออเดอร์ (บาท) ต้องตรงกับใน Supabase (upgrade-shipping.sql)
     CONTACT_LINE: '',        // LINE ID เช่น @p2pparts (เว้นว่างได้)
     CONTACT_PHONE: '',       // เบอร์โทร เช่น 0812345678 (เว้นว่างได้)
     PROMPTPAY: ''            // เบอร์/เลขบัตร PromptPay ที่แสดงหลังสั่งซื้อ (เว้นว่างได้)
@@ -123,6 +124,7 @@
 
   [hidden]{display:none!important}
   .layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start}
+  .layout:has(> .side[hidden]){grid-template-columns:minmax(0,1fr)}
   .side{position:sticky;top:16px;background:var(--panel);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--border);border-radius:20px;padding:12px;box-shadow:var(--shadow),inset 0 1px 0 var(--glass-hi)}
   .sidehead{font:600 12px 'FC Vision Rounded',ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:6px 10px 8px}
   .catrow{display:flex;align-items:center;gap:2px}
@@ -149,9 +151,14 @@
   }
   .newsec{margin:0 0 26px}
   .hrow{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 16px;scroll-snap-type:x proximity}
-  .hrow .card{flex:0 0 200px;scroll-snap-align:start}
+  .hrow .card{flex:0 0 200px;width:200px;min-width:0;scroll-snap-align:start}
+  /* การ์ดทุกใบสูงเท่ากัน ปุ่มใส่ตะกร้าชิดล่างเสมอ */
+  .card{display:flex;flex-direction:column}
+  .card .body{flex:1;display:flex;flex-direction:column;min-width:0}
+  .card .body .hint{margin-bottom:10px}
+  .card .body .addcart{margin-top:auto}
   .hrow .card:hover{transform:translateY(-3px)}
-  @media (max-width:560px){.hrow .card{flex-basis:46%}}
+  @media (max-width:560px){.hrow .card{flex-basis:46%;width:46%}}
   .hrow .empty{flex:1;padding:22px 16px}
   .newbadge{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;background:linear-gradient(135deg,#FF453A,#FF9F0A);color:#fff;font:800 11px 'FC Vision Rounded',system-ui,sans-serif;letter-spacing:.06em;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:2}
   .newtog{position:absolute;top:8px;right:8px;padding:4px 9px;border-radius:999px;border:none;background:rgba(0,0,0,.6);color:#fff;font:700 11px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;z-index:3}
@@ -184,6 +191,7 @@
   .qty{display:flex;align-items:center;gap:6px}
   .qty button{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--hair);color:var(--text);font:600 15px system-ui;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
   .qty span{min-width:18px;text-align:center;font:700 14px 'FC Vision Rounded',system-ui,sans-serif}
+  .sumrow{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font:500 14px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim)}
   .total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 4px;font:600 15px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim)}
   .total b{font:700 24px 'FC Vision Rounded',system-ui,sans-serif;color:var(--up);letter-spacing:-.02em}
   textarea.in{resize:vertical;min-height:84px;line-height:1.5}
@@ -320,7 +328,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v8.2</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v9</span></div>
   </div>
 </div>
 
@@ -468,6 +476,7 @@
   const C = window.SHOP_CONFIG || {};
   const MAX = 10, MAX_SIDE = 1400, BUCKET = 'parts';
   const $ = s => document.querySelector(s);
+  const SHIP = Number(C.SHIPPING ?? 50) || 0;
   const fmtTHB = n => Math.round(n || 0).toLocaleString('en-US') + '<span class="baht">บาท</span>';
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   // UUID v4 (randomUUID ใช้ได้เฉพาะ https จึงมีสำรองด้วย getRandomValues)
@@ -551,7 +560,7 @@
           }
         }
         for (const i of out) total += i.price * i.qty;
-        await tx('orders', 'readwrite', s => s.put({ ...o, total, items: out }));
+        await tx('orders', 'readwrite', s => s.put({ ...o, shipping: SHIP, total: total + SHIP, items: out }));
       },
       async listOrders() { return ((await tx('orders', 'readonly', s => s.getAll())) || []).sort((a, b) => b.created_at.localeCompare(a.created_at)); },
       async setOrderStatus(id, status) {
@@ -844,7 +853,7 @@
   const cartBtnHTML = it => it.sold
     ? '<button class="addcart" disabled>สินค้าหมด</button>'
     : it.options.length ? (cart.some(c => c.id === it.id)
-      ? `<button class="addcart in" data-opts="${it.id}">✓ ในตะกร้า · เลือกเพิ่ม</button>`
+      ? `<button class="addcart in" data-opts="${it.id}">✓ ในตะกร้า · เพิ่ม</button>`
       : `<button class="addcart" data-opts="${it.id}">🛒 เลือกตัวเลือก</button>`)
     : inCart(it.id) ? `<button class="addcart in" data-cart="${it.id}">✓ อยู่ในตะกร้า</button>`
     : `<button class="addcart" data-cart="${it.id}">🛒 ใส่ตะกร้า</button>`;
@@ -893,6 +902,10 @@
   };
 
   let cstep = 'cart', lastOrder = null, formOpenedAt = 0, maxKey = '';
+  // สรุปยอด: ราคาสินค้า + ค่าจัดส่ง = ยอดรวม
+  const sumHTML = n => `<div class="sumrow" style="margin-top:12px"><span>ราคาสินค้า (${n} ชิ้น)</span><span>${fmtTHB(cartTotal())}</span></div>
+      <div class="sumrow"><span>ค่าจัดส่ง</span><span>${fmtTHB(SHIP)}</span></div>
+      <div class="total"><span>ยอดรวม</span><b>${fmtTHB(cartTotal() + SHIP)}</b></div>`;
   const openCart = () => { cstep = 'cart'; maxKey = ''; drawCart(); show('cart'); };
   $('#cartBtn').onclick = openCart;
   const drawCart = () => {
@@ -904,7 +917,7 @@
         <div class="no">ออเดอร์ #${esc(lastOrder.no)}</div>
         <p>ยอดรวม <b style="color:var(--up)">${fmtTHB(lastOrder.total)}</b></p>
         ${C.PROMPTPAY ? `<p>โอนผ่าน PromptPay: <b style="color:var(--text)">${esc(C.PROMPTPAY)}</b></p>` : ''}
-        <p>ร้านจะติดต่อกลับที่เบอร์ ${esc(lastOrder.phone)} เพื่อยืนยันออเดอร์และค่าจัดส่ง</p>
+        <p>ร้านจะติดต่อกลับที่เบอร์ ${esc(lastOrder.phone)} เพื่อยืนยันออเดอร์</p>
         <div class="contact">${contactHTML()}</div>
         <div class="actions" style="margin-top:16px"><button class="btn primary" data-close>กลับไปดูสินค้า</button></div>
       </div>`;
@@ -932,8 +945,8 @@
           <button class="x" data-del="${esc(l.key)}" title="เอาออก" aria-label="เอาออก">✕</button>
         </div>`;
       }).join('') +
-      `<div class="total"><span>ยอดรวม</span><b>${fmtTHB(cartTotal())}</b></div>
-       <div class="hint" style="margin:0 0 14px">ยังไม่รวมค่าจัดส่ง ร้านจะแจ้งยอดสุดท้ายอีกครั้ง</div>
+      sumHTML(buyable().reduce((s, l) => s + l.qty, 0)) + '<div style="height:14px"></div>' +
+      `
        <div class="actions"><button class="btn" data-close>เลือกสินค้าต่อ</button><button class="btn primary" id="toCheckout" ${buyable().length ? '' : 'disabled'}>สั่งซื้อ</button></div>`;
       return;
     }
@@ -945,7 +958,7 @@
       <div><div class="label"><span>ที่อยู่จัดส่ง</span></div><textarea class="in" id="oAddr" autocomplete="street-address" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์"></textarea></div>
       <div><div class="label"><span>หมายเหตุ (ถ้ามี)</span></div><input class="in" id="oNote" placeholder="เช่น รุ่นรถ ปีรถ หรือเวลาที่สะดวก"></div>
       <div class="sr" aria-hidden="true"><input id="oWeb" tabindex="-1" autocomplete="off"></div>
-      <div class="total"><span>${buyable().reduce((s, l) => s + l.qty, 0)} ชิ้น · ยอดรวม</span><b>${fmtTHB(cartTotal())}</b></div>
+      ${sumHTML(buyable().reduce((s, l) => s + l.qty, 0))}
       <div class="msg" id="oMsg"></div>
       <div class="actions"><button class="btn" id="backCart">ย้อนกลับ</button><button class="btn primary" id="placeOrder">ยืนยันสั่งซื้อ</button></div>
     </div>`;
@@ -978,14 +991,15 @@
     if (!/^0\d{8,9}$/.test(phone.replace(/\D/g, ''))) { m.textContent = 'กรุณาใส่เบอร์โทรให้ถูกต้อง เช่น 0812345678'; return; }
     if (address.length < 10) { m.textContent = 'กรุณาใส่ที่อยู่จัดส่งให้ครบ'; return; }
     // กันบอท: ช่องซ่อนถูกกรอก หรือกรอกฟอร์มเร็วผิดปกติ → ทำเหมือนสำเร็จแต่ไม่ส่ง
-    if ($('#oWeb').value || Date.now() - formOpenedAt < 3000) { lastOrder = { no: uid().slice(0, 8).toUpperCase(), total: cartTotal(), phone }; cstep = 'done'; drawCart(); return; }
+    if ($('#oWeb').value || Date.now() - formOpenedAt < 3000) { lastOrder = { no: uid().slice(0, 8).toUpperCase(), total: cartTotal() + SHIP, phone }; cstep = 'done'; drawCart(); return; }
     await reload(); // เช็คราคา/สถานะล่าสุดก่อนส่ง
     const lines = buyable();
     if (!lines.length) { cstep = 'cart'; drawCart(); return; }
     const order = {
       id: uid(), customer_name: name, phone, address, note, status: 'new',
       items: lines.map(l => ({ id: l.id, ...(l.opt ? { opt: l.opt } : {}), name: l.name, price: l.price, qty: l.qty })),
-      total: lines.reduce((s, l) => s + l.price * l.qty, 0),
+      shipping: SHIP,
+      total: lines.reduce((s, l) => s + l.price * l.qty, 0) + SHIP,
       created_at: new Date().toISOString()
     };
     btn.disabled = true; btn.innerHTML = '<span class="spin"></span>กำลังส่งออเดอร์';
@@ -1018,6 +1032,7 @@
       <div class="who"><b style="color:var(--text)">${esc(o.customer_name)}</b> · <a href="tel:${esc(String(o.phone).replace(/[^\d+]/g, ''))}" style="color:var(--blue)">${esc(o.phone)}</a>
 ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</div>
       <ul>${(o.items || []).map(i => `<li>${i.opt ? esc(i.name).replace(/ \(([^()]*)\)$/, '<br><small style="color:var(--blue)">ตัวเลือก: $1</small><br>') : esc(i.name)} × ${i.qty} · ${fmtTHB(i.price * i.qty)}</li>`).join('')}</ul>
+      ${o.shipping ? `<div class="when" style="margin-top:6px">ค่าจัดส่ง ${fmtTHB(o.shipping)}</div>` : ''}
       <div class="sum">${fmtTHB(o.total)}</div>
     </div>`).join('');
   };
