@@ -312,7 +312,7 @@
         <h2 id="catTitle">อะไหล่ทั้งหมด</h2>
         <div class="search">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <input type="text" id="q" placeholder="ค้นหาชื่ออะไหล่">
+          <input type="text" id="q" placeholder="ค้นหาชื่ออะไหล่ หรือ SKU">
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex:none">
@@ -329,7 +329,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v13.2</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v14</span></div>
   </div>
 </div>
 
@@ -343,6 +343,7 @@
     <div class="viewer" id="viewer"></div>
     <div class="strip" id="strip"></div>
     <div class="dname" id="dName"></div>
+    <div class="hint" id="dSku" style="margin:0 0 6px"></div>
     <div class="dprice" id="dPrice"></div>
     <div class="dopts" id="dOpts" hidden></div>
     <button class="btn primary" id="dCart" style="width:100%;margin-top:16px">🛒 ใส่ตะกร้า</button>
@@ -364,6 +365,10 @@
       <div>
         <div class="label"><span>ชื่ออะไหล่</span></div>
         <input class="in" id="fName" type="text" placeholder="เช่น ไฟหน้า Honda Wave 125i ปี 2018">
+      </div>
+      <div>
+        <div class="label"><span>SKU / รหัสอะไหล่</span><span class="n">ไม่บังคับ</span></div>
+        <input class="in" id="fSku" type="text" maxlength="60" autocomplete="off" placeholder="เช่น 73740321B">
       </div>
       <div>
         <div class="label"><span>รูปอะไหล่</span><span class="n" id="pCount">0/10</span></div>
@@ -448,7 +453,7 @@
     </div>
     <div class="search" style="flex:none;min-width:0">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <input type="text" id="pq" placeholder="ค้นหาชื่ออะไหล่">
+      <input type="text" id="pq" placeholder="ค้นหาชื่ออะไหล่ หรือ SKU">
     </div>
     <div class="picklist" id="pickList"></div>
     <div class="msg" id="pMsg"></div>
@@ -712,7 +717,7 @@ object-assign
   const render = () => {
     renderSide(); renderNew();
     const q = $('#q').value.trim().toLowerCase();
-    const list = items.filter(it => inCat(it) && (!q || it.name.toLowerCase().includes(q)));
+    const list = items.filter(it => inCat(it) && match(it, q));
     const g = $('#grid');
     if (!items.length) {
       g.innerHTML = `<div class="empty"><b>ยังไม่มีอะไหล่ที่ลงขาย</b>${seller ? 'กดปุ่ม + เพื่อเพิ่มรูปอะไหล่และตั้งราคา' : 'แวะมาดูใหม่เร็ว ๆ นี้'}</div>`;
@@ -725,7 +730,15 @@ object-assign
     $('#fcount').textContent = items.filter(i => !i.sold).length + ' รายการที่มีของ';
   };
   // สินค้าที่มีตัวเลือก: ราคา = ตัวเลือกที่ถูกสุด (ที่ยังมีของ) · สต็อก = รวมทุกตัวเลือก
+  // ค้นหาจากชื่อ หรือ SKU ของสินค้า/ตัวเลือก (ไม่สนช่องว่าง ขีด ตัวเล็กตัวใหญ่)
+  const flat = v => String(v || '').toLowerCase().replace(/[\s\-_.\/]/g, '');
+  const match = (it, q) => {
+    if (!q) return true;
+    const fq = flat(q);
+    return it.name.toLowerCase().includes(q) || (fq && [it.sku, ...it.options.map(o => o.sku)].some(k => flat(k).includes(fq)));
+  };
   const normItem = i => {
+    i.sku = i.sku || '';
     i.is_new = !!i.is_new; i.photos = i.photos || []; i.price = Number(i.price) || 0; i.stock = Math.max(0, Number(i.stock ?? 1) || 0);
     i.options = (Array.isArray(i.options) ? i.options : []).map(o => ({ ...o, price: Number(o.price) || 0, stock: Math.max(0, Number(o.stock) || 0) }));
     if (i.options.length) {
@@ -788,7 +801,7 @@ object-assign
   let picked = new Set();
   const drawPick = () => {
     const q = $('#pq').value.trim().toLowerCase();
-    $('#pickList').innerHTML = items.filter(i => !q || i.name.toLowerCase().includes(q)).map(i => `
+    $('#pickList').innerHTML = items.filter(i => match(i, q)).map(i => `
       <label class="pickrow">
         <input type="checkbox" data-pick="${i.id}" ${picked.has(i.id) ? 'checked' : ''}>
         ${i.photos.length ? tImg(i.photos[0], '', '44px') : '<div class="noimg"></div>'}
@@ -844,6 +857,7 @@ object-assign
   const openDetail = it => {
     cur = it; ci = 0; drawViewer();
     $('#dName').textContent = it.name;
+    $('#dSku').textContent = it.sku ? 'SKU: ' + it.sku : '';
     $('#dPrice').innerHTML = it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
     $('#dOpts').hidden = !it.options.length;
     $('#dOpts').innerHTML = it.options.map(o => `<button data-dopt="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>${o.photo ? tImg(o.photo, '', '30px') : '<span class="noimg"></span>'}${esc(o.name)}${o.stock > 0 ? '' : ' (หมด)'}</button>`).join('');
@@ -912,7 +926,7 @@ object-assign
       <button class="optcard${o.id === pkSel ? ' on' : ''}" data-op="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>
         <div class="im">${o.photo ? tImg(o.photo, '', '150px') : 'ไม่มีรูป'}</div>
         <div class="tx"><div class="nm" title="${esc(o.name)}">${esc(o.name)}</div><div class="pr">${fmtTHB(o.price)}</div>
-        <div class="st">${o.stock > 0 ? 'เหลือ ' + o.stock + ' ชิ้น' : 'หมด'}${inCart(pk.id, o.id) ? ' · ✓ ในตะกร้า' : ''}</div></div>
+        <div class="st">${o.stock > 0 ? 'เหลือ ' + o.stock + ' ชิ้น' : 'หมด'}${inCart(pk.id, o.id) ? ' · ✓ ในตะกร้า' : ''}</div>${o.sku ? `<div class="st">SKU: ${esc(o.sku)}</div>` : ''}</div>
         <span class="tick">✓</span>
       </button>`).join('');
     const b = $('#opAdd'), o = pk.options.find(x => x.id === pkSel);
@@ -1094,6 +1108,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     photos = it ? it.photos.map(path => ({ path })) : [];
     $('#mTitle').textContent = it ? 'แก้ไขอะไหล่' : 'ลงขายอะไหล่';
     $('#fName').value = it ? it.name : '';
+    $('#fSku').value = it ? it.sku : '';
     $('#fPrice').value = it && it.price ? Number(it.price).toLocaleString('en-US') : '';
     $('#fStock').value = it ? it.stock : 1;
     $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -1228,6 +1243,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         <button type="button" class="optph" data-ophoto="${i}" title="เลือกรูปตัวเลือกนี้">${o.photo ? `<img src="${prev(o.photo)}" alt="">` : '<span class="ic">📷</span>ใส่รูป'}</button>
         <div class="optf">
           <label class="wide"><small>ชื่อตัวเลือก</small><input class="in" data-oi="${i}" data-of="name" maxlength="60" placeholder="เช่น สีแดง / ขนาด L / รุ่นปี 2020" value="${esc(o.name)}"></label>
+          <label class="wide"><small>SKU ตัวเลือก (ถ้ามี)</small><input class="in" data-oi="${i}" data-of="sku" maxlength="60" placeholder="เช่น 73740321B" value="${esc(o.sku || '')}"></label>
           <label><small>ราคา (บาท)</small><input class="in" data-oi="${i}" data-of="price" inputmode="numeric" placeholder="0" value="${fmtNum(o.price)}"></label>
           <label><small>จำนวน</small><input class="in" data-oi="${i}" data-of="stock" type="number" min="0" max="9999" inputmode="numeric" value="${o.stock}"></label>
         </div>
@@ -1245,7 +1261,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     const o = opts[+f.dataset.oi], k = f.dataset.of;
     if (k === 'price') { f.value = fmtNum(f.value); o.price = Number(f.value.replace(/[^\d]/g, '')) || 0; }
     else if (k === 'stock') o.stock = Math.max(0, Math.min(9999, parseInt(f.value, 10) || 0));
-    else o.name = f.value;
+    else o[k] = f.value;
   });
   $('#optArea').addEventListener('click', e => {
     const d = e.target.closest('[data-odel]');
@@ -1297,10 +1313,10 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
           photo = await uploadPhoto(o.photo.blob);
           uploaded.push(photo); urls.set(photo, live ? await B.urlFor(photo) : o.photo.preview);
         }
-        options.push({ id: o.id, name: o.name.trim(), price: o.price, stock: o.stock, photo });
+        options.push({ id: o.id, name: o.name.trim(), sku: (o.sku || '').trim(), price: o.price, stock: o.stock, photo });
       }
       btn.innerHTML = '<span class="spin"></span>กำลังบันทึก';
-      const part = { id: editing ? editing.id : uid(), name, price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
+      const part = { id: editing ? editing.id : uid(), name, sku: $('#fSku').value.trim(), price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
       if (!editing) part.created_at = new Date().toISOString();
       // ส่งช่อง options เฉพาะเมื่อมี/เคยมีตัวเลือก (เว็บยังใช้ได้แม้ยังไม่ได้รัน upgrade-options.sql)
       if (!options.length && !(editing && editing.options.length)) delete part.options;
