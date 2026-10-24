@@ -290,7 +290,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v5</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v6</span></div>
   </div>
 </div>
 
@@ -767,7 +767,7 @@
   const buyable = () => cartLines().filter(l => l.it && !l.it.sold).map(l => ({ ...l, qty: Math.min(l.qty, l.it.stock) }));
   const cartTotal = () => buyable().reduce((s, l) => s + l.it.price * l.qty, 0);
 
-  let cstep = 'cart', lastOrder = null;
+  let cstep = 'cart', lastOrder = null, formOpenedAt = 0;
   const openCart = () => { cstep = 'cart'; drawCart(); show('cart'); };
   $('#cartBtn').onclick = openCart;
   const drawCart = () => {
@@ -818,10 +818,12 @@
       <div><div class="label"><span>เบอร์โทร</span></div><input class="in" id="oPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="08x-xxx-xxxx"></div>
       <div><div class="label"><span>ที่อยู่จัดส่ง</span></div><textarea class="in" id="oAddr" autocomplete="street-address" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์"></textarea></div>
       <div><div class="label"><span>หมายเหตุ (ถ้ามี)</span></div><input class="in" id="oNote" placeholder="เช่น รุ่นรถ ปีรถ หรือเวลาที่สะดวก"></div>
+      <div class="sr" aria-hidden="true"><input id="oWeb" tabindex="-1" autocomplete="off"></div>
       <div class="total"><span>${buyable().reduce((s, l) => s + l.qty, 0)} ชิ้น · ยอดรวม</span><b>${fmtTHB(cartTotal())}</b></div>
       <div class="msg" id="oMsg"></div>
       <div class="actions"><button class="btn" id="backCart">ย้อนกลับ</button><button class="btn primary" id="placeOrder">ยืนยันสั่งซื้อ</button></div>
     </div>`;
+    formOpenedAt = Date.now();
     setTimeout(() => $('#oName').focus(), 50);
   };
   $('#cartBody').addEventListener('click', async e => {
@@ -837,8 +839,10 @@
     const name = $('#oName').value.trim(), phone = $('#oPhone').value.trim(), address = $('#oAddr').value.trim(), note = $('#oNote').value.trim();
     const m = $('#oMsg');
     if (!name) { m.textContent = 'กรุณาใส่ชื่อผู้รับ'; return; }
-    if (phone.replace(/\D/g, '').length < 9) { m.textContent = 'กรุณาใส่เบอร์โทรให้ถูกต้อง'; return; }
+    if (!/^0\d{8,9}$/.test(phone.replace(/\D/g, ''))) { m.textContent = 'กรุณาใส่เบอร์โทรให้ถูกต้อง เช่น 0812345678'; return; }
     if (address.length < 10) { m.textContent = 'กรุณาใส่ที่อยู่จัดส่งให้ครบ'; return; }
+    // กันบอท: ช่องซ่อนถูกกรอก หรือกรอกฟอร์มเร็วผิดปกติ → ทำเหมือนสำเร็จแต่ไม่ส่ง
+    if ($('#oWeb').value || Date.now() - formOpenedAt < 3000) { lastOrder = { no: uid().slice(0, 8).toUpperCase(), total: cartTotal(), phone }; cstep = 'done'; drawCart(); return; }
     await reload(); // เช็คราคา/สถานะล่าสุดก่อนส่ง
     const lines = buyable();
     if (!lines.length) { cstep = 'cart'; drawCart(); return; }
