@@ -328,7 +328,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v9</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v10</span></div>
   </div>
 </div>
 
@@ -480,6 +480,8 @@
   const fmtTHB = n => Math.round(n || 0).toLocaleString('en-US') + '<span class="baht">บาท</span>';
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   // UUID v4 (randomUUID ใช้ได้เฉพาะ https จึงมีสำรองด้วย getRandomValues)
+  // รูปย่อสำหรับการ์ด (ด้านยาวไม่เกิน 500px) เก็บไว้ที่ t/<ชื่อรูป> · จอคอมย่อรูปใหญ่ 1400px ลงเหลือ 200px แล้วตัวหนังสือแตก
+  const TH = p => 't/' + p, THUMB_SIDE = 500;
   const uid = () => crypto.randomUUID ? crypto.randomUUID()
     : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
 
@@ -525,8 +527,9 @@
       async signIn() { try { sessionStorage.setItem('p2p_demo_seller', '1'); } catch {} },
       async signOut() { try { sessionStorage.removeItem('p2p_demo_seller'); } catch {} },
       async list() { return (await tx('parts', 'readonly', s => s.getAll())) || []; },
-      async upload(blob) { const path = uid() + '.jpg'; await tx('files', 'readwrite', s => s.put(blob, path)); return path; },
-      async removeFiles(paths) { for (const p of paths) { await tx('files', 'readwrite', s => s.delete(p)); blobs.delete(p); } },
+      async upload(blob, path = uid() + '.jpg') { await tx('files', 'readwrite', s => s.put(blob, path)); return path; },
+      async removeFiles(paths) { for (const p of [...paths, ...paths.map(TH)]) { await tx('files', 'readwrite', s => s.delete(p)); blobs.delete(p); } },
+      async listThumbs() { return null; },
       async save(part) { await tx('parts', 'readwrite', s => s.put(part)); },
       async remove(id) { await tx('parts', 'readwrite', s => s.delete(id)); },
       async listCats() { return ((await tx('cats', 'readonly', s => s.getAll())) || []).sort((a, b) => a.created_at.localeCompare(b.created_at)); },
@@ -589,12 +592,15 @@
     async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); if (error) throw error; },
     async signOut() { await sb.auth.signOut(); },
     async list() { const { data, error } = await sb.from('parts').select('*').order('created_at', { ascending: false }); if (error) throw error; return data || []; },
-    async upload(blob) {
-      const path = uid() + '.jpg';
+    async upload(blob, path = uid() + '.jpg') {
       const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
       if (error) throw error; return path;
     },
-    async removeFiles(paths) { if (paths.length) await sb.storage.from(BUCKET).remove(paths); },
+    async removeFiles(paths) { if (paths.length) await sb.storage.from(BUCKET).remove([...paths, ...paths.map(TH)]); },
+    async listThumbs() {
+      const { data, error } = await sb.storage.from(BUCKET).list('t', { limit: 10000 });
+      if (error) throw error; return new Set((data || []).map(f => f.name));
+    },
     async save(part) { const { error } = await sb.from('parts').upsert(part); if (error) throw error; },
     async remove(id) { const { error } = await sb.from('parts').delete().eq('id', id); if (error) throw error; },
     async listCats() { const { data, error } = await sb.from('categories').select('*').order('created_at'); if (error) throw error; return data || []; },
@@ -614,8 +620,9 @@
   let items = [], cats = [], curCat = '', seller = false;
   const urls = new Map();
   const url = p => urls.get(p) || '';
+  const tImg = (p, extra = '') => `<img src="${url(TH(p)) || url(p)}" data-full="${url(p)}" onerror="if(this.dataset.full&&this.src!==this.dataset.full)this.src=this.dataset.full" alt="" ${extra}>`;
   const allPhotos = it => [...(it.photos || []), ...(it.options || []).map(o => o.photo).filter(Boolean)];
-  const resolveUrls = async list => { for (const it of list) for (const p of allPhotos(it)) if (!urls.has(p)) urls.set(p, await B.urlFor(p)); };
+  const resolveUrls = async list => { for (const it of list) for (const p of allPhotos(it)) if (!urls.has(p)) { urls.set(p, await B.urlFor(p)); urls.set(TH(p), await B.urlFor(TH(p))); } };
 
   const setSeller = v => {
     seller = v;
@@ -646,7 +653,7 @@
   const cardHTML = it => `
         <div class="card${it.sold ? ' is-sold' : ''}" data-id="${it.id}" tabindex="0">
           <div class="thumb">
-            ${it.photos.length ? `<img src="${url(it.photos[0])}" alt="" loading="lazy">` : '<div class="none">NO PHOTO</div>'}
+            ${it.photos.length ? tImg(it.photos[0], 'loading="lazy"') : '<div class="none">NO PHOTO</div>'}
             ${it.is_new ? '<span class="newbadge">NEW</span>' : ''}
             ${seller ? `<button class="newtog${it.is_new ? ' on' : ''}" data-new="${it.id}" title="${it.is_new ? 'เอาออกจากอะไหล่เข้าใหม่' : 'เพิ่มเป็นอะไหล่เข้าใหม่'}">${it.is_new ? '× เข้าใหม่' : '+ เข้าใหม่'}</button>` : ''}
             ${it.photos.length > 1 ? `<div class="pill">📷 ${it.photos.length}</div>` : ''}
@@ -713,7 +720,7 @@
   const reload = async () => {
     try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(normItem); }
     catch (e) { $('#grid').innerHTML = `<div class="empty"><b>โหลดข้อมูลไม่ได้</b>${esc(e.message || e)}</div>`; return; }
-    await resolveUrls(items); render();
+    await resolveUrls(items); render(); backfillThumbs();
   };
   $('#q').oninput = render;
   const pick = e => {
@@ -765,7 +772,7 @@
     $('#pickList').innerHTML = items.filter(i => !q || i.name.toLowerCase().includes(q)).map(i => `
       <label class="pickrow">
         <input type="checkbox" data-pick="${i.id}" ${picked.has(i.id) ? 'checked' : ''}>
-        ${i.photos.length ? `<img src="${url(i.photos[0])}" alt="">` : '<div class="noimg"></div>'}
+        ${i.photos.length ? tImg(i.photos[0]) : '<div class="noimg"></div>'}
         <div class="info"><div class="nm">${esc(i.name)}</div><div class="sub">${catName(i.category_id) ? 'หมวด: ' + esc(catName(i.category_id)) : 'ยังไม่มีหมวด'}</div></div>
       </label>`).join('') || '<div class="empty" style="padding:24px">ไม่พบอะไหล่</div>';
   };
@@ -807,7 +814,7 @@
     $('#viewer').innerHTML = ph.length
       ? `<img src="${url(ph[ci])}" alt="${esc(cur.name)}">` + (ph.length > 1 ? `<button class="nav prev" aria-label="ก่อนหน้า">‹</button><button class="nav next" aria-label="ถัดไป">›</button><div class="idx">${ci + 1}/${ph.length}</div>` : '')
       : '<div class="thumb" style="height:100%"><div class="none">NO PHOTO</div></div>';
-    $('#strip').innerHTML = ph.length > 1 ? ph.map((p, i) => `<button data-i="${i}" class="${i === ci ? 'cur' : ''}"><img src="${url(p)}" alt=""></button>`).join('') : '';
+    $('#strip').innerHTML = ph.length > 1 ? ph.map((p, i) => `<button data-i="${i}" class="${i === ci ? 'cur' : ''}">${tImg(p)}</button>`).join('') : '';
   };
   const step = d => { if (!cur || cur.photos.length < 2) return; ci = (ci + d + cur.photos.length) % cur.photos.length; drawViewer(); };
   $('#viewer').addEventListener('click', e => { if (e.target.closest('.prev')) step(-1); else if (e.target.closest('.next')) step(1); });
@@ -820,7 +827,7 @@
     $('#dName').textContent = it.name;
     $('#dPrice').innerHTML = it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
     $('#dOpts').hidden = !it.options.length;
-    $('#dOpts').innerHTML = it.options.map(o => `<button data-dopt="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>${o.photo ? `<img src="${url(o.photo)}" alt="">` : '<span class="noimg"></span>'}${esc(o.name)}${o.stock > 0 ? '' : ' (หมด)'}</button>`).join('');
+    $('#dOpts').innerHTML = it.options.map(o => `<button data-dopt="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>${o.photo ? tImg(o.photo) : '<span class="noimg"></span>'}${esc(o.name)}${o.stock > 0 ? '' : ' (หมด)'}</button>`).join('');
     $('#dContact').innerHTML = it.sold ? '' : contactHTML(it.name);
     if (!it.sold) $('#dPrice').insertAdjacentHTML('beforeend', `<div class="hint" style="font-size:13px">เหลือ ${it.stock} ชิ้น</div>`);
     drawDetailCart();
@@ -884,7 +891,7 @@
     $('#opTitle').textContent = pk.name;
     $('#opList').innerHTML = pk.options.map(o => `
       <button class="optcard${o.id === pkSel ? ' on' : ''}" data-op="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>
-        <div class="im">${o.photo ? `<img src="${url(o.photo)}" alt="">` : 'ไม่มีรูป'}</div>
+        <div class="im">${o.photo ? tImg(o.photo) : 'ไม่มีรูป'}</div>
         <div class="tx"><div class="nm" title="${esc(o.name)}">${esc(o.name)}</div><div class="pr">${fmtTHB(o.price)}</div>
         <div class="st">${o.stock > 0 ? 'เหลือ ' + o.stock + ' ชิ้น' : 'หมด'}${inCart(pk.id, o.id) ? ' · ✓ ในตะกร้า' : ''}</div></div>
         <span class="tick">✓</span>
@@ -932,7 +939,7 @@
     if (cstep === 'cart') {
       $('#cTitle').textContent = 'ตะกร้าสินค้า';
       body.innerHTML = lines.map(l => {
-        const img = l.photo ? `<img src="${url(l.photo)}" alt="">` : '<div class="noimg"></div>';
+        const img = l.photo ? tImg(l.photo) : '<div class="noimg"></div>';
         return `<div class="line-item">
           ${img}
           <div class="info">
@@ -1062,7 +1069,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   let editing = null, photos = [], dragFrom = null;
   // opts: [{ id, name, price, stock, photo: { path } | { blob, preview } | null }]
   let opts = [], optTarget = -1;
-  const prev = p => p.preview || url(p.path);
+  const prev = p => p.preview || url(TH(p.path)) || url(p.path);
   const openEditor = it => {
     editing = it || null;
     photos = it ? it.photos.map(path => ({ path })) : [];
@@ -1133,6 +1140,45 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     img.onerror = () => { URL.revokeObjectURL(u); res(null); };
     img.src = u;
   });
+  // ย่อทีละครึ่งจนใกล้ขนาดเป้าหมาย ภาพจะคมกว่าย่อครั้งเดียว
+  const thumbOf = src => new Promise(res => {
+    const go = img => {
+      let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, cur = img;
+      const k = Math.min(1, THUMB_SIDE / Math.max(w, h)), tw = Math.round(w * k), th = Math.round(h * k);
+      while (w / 2 >= tw) {
+        const c = document.createElement('canvas'); c.width = w = Math.round(w / 2); c.height = h = Math.round(h / 2);
+        const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, w, h); cur = c;
+      }
+      const c = document.createElement('canvas'); c.width = tw; c.height = th;
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, tw, th);
+      c.toBlob(b => res(b), 'image/jpeg', 0.88);
+    };
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => go(img); img.onerror = () => res(null);
+    img.src = typeof src === 'string' ? src : URL.createObjectURL(src);
+  });
+  const uploadPhoto = async blob => {
+    const path = await B.upload(blob);
+    const t = await thumbOf(blob);
+    if (t) { try { await B.upload(t, TH(path)); urls.set(TH(path), live ? await B.urlFor(TH(path)) : URL.createObjectURL(t)); } catch {} }
+    return path;
+  };
+  // สร้างรูปย่อให้รูปเก่าที่ยังไม่มี (ทำครั้งเดียว ตอนแอดมินล็อกอิน)
+  let thumbsChecked = false;
+  const backfillThumbs = async () => {
+    if (thumbsChecked || !live || !seller) return;
+    thumbsChecked = true;
+    try {
+      const have = await B.listThumbs();
+      const need = [...new Set(items.flatMap(allPhotos))].filter(p => !have.has(p));
+      for (const p of need) {
+        const t = await thumbOf(url(p) + '?t=1');
+        if (t) await B.upload(t, TH(p)).catch(() => {});
+      }
+      if (need.length) render();
+    } catch {}
+  };
+
   const addFiles = async fileList => {
     const files = [...fileList].filter(f => f.type.startsWith('image/'));
     const room = MAX - photos.length;
@@ -1213,7 +1259,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         const p = photos[i];
         if (p.path) { paths.push(p.path); continue; }
         btn.innerHTML = `<span class="spin"></span>อัปโหลดรูป ${i + 1}/${photos.length}`;
-        const path = await B.upload(p.blob);
+        const path = await uploadPhoto(p.blob);
         uploaded.push(path); urls.set(path, live ? await B.urlFor(path) : p.preview); paths.push(path);
       }
       const options = [];
@@ -1222,7 +1268,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         if (o.photo && o.photo.path) photo = o.photo.path;
         else if (o.photo) {
           btn.innerHTML = `<span class="spin"></span>อัปโหลดรูปตัวเลือก ${i + 1}/${opts.length}`;
-          photo = await B.upload(o.photo.blob);
+          photo = await uploadPhoto(o.photo.blob);
           uploaded.push(photo); urls.set(photo, live ? await B.urlFor(photo) : o.photo.preview);
         }
         options.push({ id: o.id, name: o.name.trim(), price: o.price, stock: o.stock, photo });
@@ -1254,7 +1300,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     await B.init();
     const timeout = new Promise(r => setTimeout(() => r(false), 5000));
     setSeller(await Promise.race([B.session().catch(() => false), timeout]));
-    if (live) sb.auth.onAuthStateChange((_e, s) => { setSeller(!!s); render(); });
+    if (live) sb.auth.onAuthStateChange((_e, s) => { setSeller(!!s); render(); backfillThumbs(); });
     await reload();
   })();
 })();
