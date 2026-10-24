@@ -226,6 +226,35 @@
   .check input{width:18px;height:18px;accent-color:var(--blue)}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spinOnce .8s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes spinOnce{to{transform:rotate(360deg)}}
+  .from{font-size:.6em;font-weight:600;margin-right:.3em;letter-spacing:0;color:var(--dim)}
+  .opts{display:flex;flex-direction:column;gap:10px}
+  .optrow{display:grid;grid-template-columns:72px 1fr 28px;gap:10px;align-items:start;padding:10px;border-radius:14px;background:var(--hair);border:1px solid var(--border)}
+  .optph{width:72px;height:72px;border-radius:10px;border:1px dashed var(--border);background:var(--img-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;padding:0;color:var(--faint);font:600 11px 'FC Vision Rounded',system-ui,sans-serif;position:relative}
+  .optph img{width:100%;height:100%;object-fit:cover;display:block}
+  .optph .ic{font-size:20px;line-height:1.2}
+  .optf{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+  .optf .in{padding:9px 12px;font-size:14px;border-radius:10px}
+  .optf .wide{grid-column:1/-1}
+  .optf small{display:block;font:600 11px 'FC Vision Rounded',system-ui,sans-serif;color:var(--faint);margin:0 0 3px}
+  .optrow .x{width:28px;height:28px}
+  .addopt{width:100%;padding:11px;border-radius:14px;border:1px dashed var(--blue);background:transparent;color:var(--blue);font:600 14px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer}
+  .addopt:hover{background:var(--hair)}
+  .optlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:4px}
+  .optcard{display:block;border:2px solid var(--border);border-radius:14px;overflow:hidden;background:var(--hair);cursor:pointer;text-align:left;padding:0;color:var(--text);font:inherit;position:relative}
+  .optcard.on{border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 25%,transparent)}
+  .optcard:disabled{opacity:.45;cursor:default}
+  .optcard .im{aspect-ratio:1;background:var(--img-bg);display:flex;align-items:center;justify-content:center;color:var(--faint);font:600 11px 'FC Vision Rounded',system-ui,sans-serif}
+  .optcard .im img{width:100%;height:100%;object-fit:cover;display:block}
+  .optcard .tx{padding:8px 10px}
+  .optcard .nm{font:600 14px 'FC Vision Rounded',system-ui,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .optcard .pr{font:700 15px 'FC Vision Rounded',system-ui,sans-serif;color:var(--up)}
+  .optcard .st{font:500 12px 'FC Vision Rounded',system-ui,sans-serif;color:var(--faint)}
+  .optcard .tick{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font:700 13px system-ui;display:none;align-items:center;justify-content:center}
+  .optcard.on .tick{display:flex}
+  .dopts{display:flex;gap:8px;overflow-x:auto;padding:12px 0 2px}
+  .dopts button{flex:none;display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--border);background:var(--hair);color:var(--text);font:600 13px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer}
+  .dopts button:disabled{opacity:.45;cursor:default}
+  .dopts img,.dopts .noimg{width:30px;height:30px;border-radius:50%;object-fit:cover;background:var(--img-bg)}
 </style>
 </head>
 <body>
@@ -290,7 +319,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v7</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v8</span></div>
   </div>
 </div>
 
@@ -305,6 +334,7 @@
     <div class="strip" id="strip"></div>
     <div class="dname" id="dName"></div>
     <div class="dprice" id="dPrice"></div>
+    <div class="dopts" id="dOpts" hidden></div>
     <button class="btn primary" id="dCart" style="width:100%;margin-top:16px">🛒 ใส่ตะกร้า</button>
     <div class="contact" id="dContact"></div>
     <div class="actions" id="dSeller" style="margin-top:16px" hidden>
@@ -331,16 +361,23 @@
         <input class="sr" id="file" type="file" accept="image/*" multiple>
         <div class="hint">ลากรูปมาวาง หรือกดเพื่อเลือก · รูปแรกคือรูปปก · ลากสลับลำดับได้</div>
       </div>
-      <div>
+      <div id="priceWrap">
         <div class="label"><span>ราคา</span></div>
         <div class="pricebox">
                     <input class="in" id="fPrice" type="text" inputmode="numeric" placeholder="0">
           <span class="unit">บาท</span>
         </div>
       </div>
-      <div>
+      <div id="stockWrap">
         <div class="label"><span>จำนวนในสต็อก</span></div>
         <div class="qty" style="gap:10px"><button type="button" data-stock="-1" aria-label="ลด">−</button><input class="in" id="fStock" type="number" min="0" max="9999" inputmode="numeric" value="1" style="width:110px;text-align:center;font-weight:700;padding:10px"><button type="button" data-stock="1" aria-label="เพิ่ม">+</button><span class="hint" style="margin:0">ใส่ 0 = สินค้าหมด</span></div>
+      </div>
+      <div>
+        <div class="label"><span>ตัวเลือกสินค้า</span><span class="n" id="oCount"></span></div>
+        <div class="opts" id="optArea"></div>
+        <input class="sr" id="optFile" type="file" accept="image/*">
+        <button type="button" class="addopt" id="addOpt" style="margin-top:10px">+ เพิ่มตัวเลือก</button>
+        <div class="hint" id="optHint">ถ้าสินค้ามีหลายแบบ (เช่น สี ขนาด รุ่น) กดเพิ่มตัวเลือก แต่ละตัวเลือกมีรูป ราคา และจำนวนของตัวเอง · ถ้ามีแบบเดียว ไม่ต้องเพิ่ม</div>
       </div>
       <div>
         <div class="label"><span>หมวดหมู่</span></div>
@@ -365,6 +402,19 @@
       <button class="x" data-close aria-label="ปิด">✕</button>
     </div>
     <div id="cartBody"></div>
+  </div>
+</div>
+
+<!-- OPTION PICKER (ลูกค้า) -->
+<div class="overlay" id="optPick">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="opTitle">
+    <div class="mhead">
+      <div class="t" id="opTitle">เลือกตัวเลือก</div>
+      <button class="x" data-close aria-label="ปิด">✕</button>
+    </div>
+    <div class="hint" style="margin:0 0 8px">กดเลือกแบบที่ต้องการ แล้วกดใส่ตะกร้า</div>
+    <div class="optlist" id="opList"></div>
+    <div class="actions" style="margin-top:16px"><button class="btn" data-close>ปิด</button><button class="btn primary" id="opAdd">🛒 ใส่ตะกร้า</button></div>
   </div>
 </div>
 
@@ -484,11 +534,23 @@
         for (const i of o.items) {
           const p = await tx('parts', 'readonly', s => s.get(i.id));
           if (!p) throw new Error('สินค้าไม่มีแล้ว');
-          if ((p.stock ?? 1) < i.qty) throw new Error(`สินค้า ${p.name} เหลือไม่พอ (เหลือ ${p.stock} ชิ้น)`);
-          out.push({ p, i });
+          const opts = p.options || [];
+          if (opts.length) {
+            const k = opts.findIndex(x => x.id === i.opt);
+            if (k < 0) throw new Error(`กรุณาเลือกตัวเลือกของสินค้า ${p.name} ใหม่`);
+            const op = opts[k];
+            if (op.stock < i.qty) throw new Error(`สินค้า ${p.name} (${op.name}) เหลือไม่พอ (เหลือ ${op.stock} ชิ้น)`);
+            opts[k] = { ...op, stock: op.stock - i.qty };
+            await tx('parts', 'readwrite', s => s.put({ ...p, options: opts, stock: Math.max(0, (p.stock ?? 0) - i.qty) }));
+            out.push({ id: p.id, opt: op.id, name: `${p.name} (${op.name})`, price: op.price, qty: i.qty });
+          } else {
+            if ((p.stock ?? 1) < i.qty) throw new Error(`สินค้า ${p.name} เหลือไม่พอ (เหลือ ${p.stock} ชิ้น)`);
+            await tx('parts', 'readwrite', s => s.put({ ...p, stock: (p.stock ?? 1) - i.qty }));
+            out.push({ id: p.id, name: p.name, price: p.price, qty: i.qty });
+          }
         }
-        for (const { p, i } of out) { await tx('parts', 'readwrite', s => s.put({ ...p, stock: (p.stock ?? 1) - i.qty })); total += p.price * i.qty; }
-        await tx('orders', 'readwrite', s => s.put({ ...o, total, items: out.map(({ p, i }) => ({ id: p.id, name: p.name, price: p.price, qty: i.qty })) }));
+        for (const i of out) total += i.price * i.qty;
+        await tx('orders', 'readwrite', s => s.put({ ...o, total, items: out }));
       },
       async listOrders() { return ((await tx('orders', 'readonly', s => s.getAll())) || []).sort((a, b) => b.created_at.localeCompare(a.created_at)); },
       async setOrderStatus(id, status) {
@@ -498,8 +560,9 @@
         for (const i of d ? o.items : []) {
           const p = await tx('parts', 'readonly', s => s.get(i.id));
           if (!p) continue;
-          if (d < 0 && p.stock < i.qty) throw new Error(`สินค้า ${p.name} เหลือไม่พอ`);
-          await tx('parts', 'readwrite', s => s.put({ ...p, stock: p.stock + d * i.qty }));
+          const opts = (p.options || []).map(x => x.id === i.opt ? { ...x, stock: x.stock + d * i.qty } : x);
+          if (d < 0 && (p.stock < i.qty || opts.some(x => x.stock < 0))) throw new Error(`สินค้า ${i.name} เหลือไม่พอ`);
+          await tx('parts', 'readwrite', s => s.put({ ...p, options: opts, stock: p.stock + d * i.qty }));
         }
         await tx('orders', 'readwrite', s => s.put({ ...o, status }));
       },
@@ -541,7 +604,8 @@
   let items = [], cats = [], curCat = '', seller = false;
   const urls = new Map();
   const url = p => urls.get(p) || '';
-  const resolveUrls = async list => { for (const it of list) for (const p of it.photos || []) if (!urls.has(p)) urls.set(p, await B.urlFor(p)); };
+  const allPhotos = it => [...(it.photos || []), ...(it.options || []).map(o => o.photo).filter(Boolean)];
+  const resolveUrls = async list => { for (const it of list) for (const p of allPhotos(it)) if (!urls.has(p)) urls.set(p, await B.urlFor(p)); };
 
   const setSeller = v => {
     seller = v;
@@ -580,8 +644,8 @@
           </div>
           <div class="body">
             <div class="name" title="${esc(it.name)}">${esc(it.name)}</div>
-            <div class="price">${fmtTHB(it.price)}</div>
-            <div class="hint" style="margin-top:2px">${it.sold ? 'สินค้าหมด' : 'เหลือ ' + it.stock + ' ชิ้น'}</div>
+            <div class="price">${priceHTML(it)}</div>
+            <div class="hint" style="margin-top:2px">${it.options.length ? it.options.length + ' ตัวเลือก · ' : ''}${it.sold ? 'สินค้าหมด' : 'เหลือ ' + it.stock + ' ชิ้น'}</div>
             ${cartBtnHTML(it)}
           </div>
         </div>`;
@@ -624,8 +688,20 @@
     $('#count').textContent = list.length + ' ชิ้น';
     $('#fcount').textContent = items.filter(i => !i.sold).length + ' รายการที่มีของ';
   };
+  // สินค้าที่มีตัวเลือก: ราคา = ตัวเลือกที่ถูกสุด (ที่ยังมีของ) · สต็อก = รวมทุกตัวเลือก
+  const normItem = i => {
+    i.is_new = !!i.is_new; i.photos = i.photos || []; i.price = Number(i.price) || 0; i.stock = Math.max(0, Number(i.stock ?? 1) || 0);
+    i.options = (Array.isArray(i.options) ? i.options : []).map(o => ({ ...o, price: Number(o.price) || 0, stock: Math.max(0, Number(o.stock) || 0) }));
+    if (i.options.length) {
+      i.stock = i.options.reduce((s, o) => s + o.stock, 0);
+      const ps = (i.options.some(o => o.stock > 0) ? i.options.filter(o => o.stock > 0) : i.options).map(o => o.price);
+      i.price = Math.min(...ps); i.priceMax = Math.max(...ps);
+    } else i.priceMax = i.price;
+    i.sold = i.stock <= 0;
+  };
+  const priceHTML = it => (it.priceMax > it.price ? '<span class="from">เริ่ม</span>' : '') + fmtTHB(it.price);
   const reload = async () => {
-    try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(i => { i.is_new = !!i.is_new; i.photos = i.photos || []; i.price = Number(i.price) || 0; i.stock = Math.max(0, Number(i.stock ?? 1) || 0); i.sold = i.stock <= 0; }); }
+    try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(normItem); }
     catch (e) { $('#grid').innerHTML = `<div class="empty"><b>โหลดข้อมูลไม่ได้</b>${esc(e.message || e)}</div>`; return; }
     await resolveUrls(items); render();
   };
@@ -633,6 +709,8 @@
   const pick = e => {
     const nb = e.target.closest('[data-new]');
     if (nb) { e.stopPropagation(); toggleNew(nb.dataset.new); return; }
+    const o = e.target.closest('[data-opts]');
+    if (o) { e.stopPropagation(); openOptPick(items.find(i => i.id === o.dataset.opts)); return; }
     const a = e.target.closest('[data-cart]');
     if (a) { e.stopPropagation(); if (inCart(a.dataset.cart)) openCart(); else addToCart(a.dataset.cart); return; }
     const c = e.target.closest('.card'); if (c) openDetail(items.find(i => i.id === c.dataset.id));
@@ -730,7 +808,9 @@
   const openDetail = it => {
     cur = it; ci = 0; drawViewer();
     $('#dName').textContent = it.name;
-    $('#dPrice').innerHTML = it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : fmtTHB(it.price);
+    $('#dPrice').innerHTML = it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
+    $('#dOpts').hidden = !it.options.length;
+    $('#dOpts').innerHTML = it.options.map(o => `<button data-dopt="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>${o.photo ? `<img src="${url(o.photo)}" alt="">` : '<span class="noimg"></span>'}${esc(o.name)}${o.stock > 0 ? '' : ' (หมด)'}</button>`).join('');
     $('#dContact').innerHTML = it.sold ? '' : contactHTML(it.name);
     if (!it.sold) $('#dPrice').insertAdjacentHTML('beforeend', `<div class="hint" style="font-size:13px">เหลือ ${it.stock} ชิ้น</div>`);
     drawDetailCart();
@@ -741,31 +821,75 @@
   const drawDetailCart = () => {
     const b = $('#dCart');
     b.hidden = !!cur.sold;
-    b.textContent = inCart(cur.id) ? '✓ อยู่ในตะกร้าแล้ว · ดูตะกร้า' : '🛒 ใส่ตะกร้า';
+    b.textContent = cur.options.length ? '🛒 เลือกตัวเลือก แล้วใส่ตะกร้า' : inCart(cur.id) ? '✓ อยู่ในตะกร้าแล้ว · ดูตะกร้า' : '🛒 ใส่ตะกร้า';
   };
   $('#dCart').onclick = () => {
-    if (inCart(cur.id)) { hide('detail'); openCart(); }
+    if (cur.options.length) openOptPick(cur);
+    else if (inCart(cur.id)) { hide('detail'); openCart(); }
     else { addToCart(cur.id); drawDetailCart(); }
   };
+  $('#dOpts').addEventListener('click', e => { const b = e.target.closest('[data-dopt]'); if (b) openOptPick(cur, b.dataset.dopt); });
 
   // ── cart (เก็บในเบราว์เซอร์ของลูกค้า) ──
   let cart = [];
   try { cart = JSON.parse(localStorage.getItem('p2p_cart') || '[]'); } catch {}
   const saveCart = () => { try { localStorage.setItem('p2p_cart', JSON.stringify(cart)); } catch {} drawBadge(); };
-  const inCart = id => cart.some(c => c.id === id);
+  const ckey = (id, opt) => id + '|' + (opt || '');
+  const inCart = (id, opt) => cart.some(c => ckey(c.id, c.opt) === ckey(id, opt));
   const drawBadge = () => {
     const n = cart.reduce((s, c) => s + c.qty, 0);
     $('#cartBadge').textContent = n; $('#cartBadge').hidden = !n;
   };
   const cartBtnHTML = it => it.sold
     ? '<button class="addcart" disabled>สินค้าหมด</button>'
+    : it.options.length ? (cart.some(c => c.id === it.id)
+      ? `<button class="addcart in" data-opts="${it.id}">✓ ในตะกร้า · เลือกเพิ่ม</button>`
+      : `<button class="addcart" data-opts="${it.id}">🛒 เลือกตัวเลือก</button>`)
     : inCart(it.id) ? `<button class="addcart in" data-cart="${it.id}">✓ อยู่ในตะกร้า</button>`
     : `<button class="addcart" data-cart="${it.id}">🛒 ใส่ตะกร้า</button>`;
-  const addToCart = id => { if (!inCart(id)) cart.push({ id, qty: 1 }); saveCart(); render(); };
-  // แถวในตะกร้า เทียบกับข้อมูลล่าสุด (ราคา/สต็อก)
-  const cartLines = () => cart.map(c => ({ ...c, it: items.find(i => i.id === c.id) }));
-  const buyable = () => cartLines().filter(l => l.it && !l.it.sold).map(l => ({ ...l, qty: Math.min(l.qty, l.it.stock) }));
-  const cartTotal = () => buyable().reduce((s, l) => s + l.it.price * l.qty, 0);
+  const addToCart = (id, opt) => { if (!inCart(id, opt)) cart.push(opt ? { id, opt, qty: 1 } : { id, qty: 1 }); saveCart(); render(); };
+  // แถวในตะกร้า เทียบกับข้อมูลล่าสุด (ราคา/สต็อก/ตัวเลือก)
+  const cartLines = () => cart.map(c => {
+    const it = items.find(i => i.id === c.id);
+    const o = it && c.opt ? it.options.find(x => x.id === c.opt) : null;
+    const bad = !it || (c.opt ? !o : it.options.length > 0);
+    const stock = bad ? 0 : o ? o.stock : it.stock;
+    return { ...c, key: ckey(c.id, c.opt), it, o, bad, stock, sold: !bad && stock <= 0,
+      name: it ? it.name + (o ? ` (${o.name})` : '') : 'สินค้านี้ถูกลบแล้ว',
+      price: o ? o.price : it ? it.price : 0,
+      photo: (o && o.photo) || (it && it.photos[0]) || '' };
+  });
+  const buyable = () => cartLines().filter(l => !l.bad && !l.sold).map(l => ({ ...l, qty: Math.min(l.qty, l.stock) }));
+  const cartTotal = () => buyable().reduce((s, l) => s + l.price * l.qty, 0);
+
+  // ── เลือกตัวเลือกก่อนใส่ตะกร้า ──
+  let pk = null, pkSel = null;
+  const openOptPick = (it, sel) => {
+    if (!it) return;
+    pk = it;
+    pkSel = sel || (it.options.find(o => o.stock > 0) || {}).id || null;
+    drawOptPick(); show('optPick');
+  };
+  const drawOptPick = () => {
+    $('#opTitle').textContent = pk.name;
+    $('#opList').innerHTML = pk.options.map(o => `
+      <button class="optcard${o.id === pkSel ? ' on' : ''}" data-op="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>
+        <div class="im">${o.photo ? `<img src="${url(o.photo)}" alt="">` : 'ไม่มีรูป'}</div>
+        <div class="tx"><div class="nm" title="${esc(o.name)}">${esc(o.name)}</div><div class="pr">${fmtTHB(o.price)}</div>
+        <div class="st">${o.stock > 0 ? 'เหลือ ' + o.stock + ' ชิ้น' : 'หมด'}${inCart(pk.id, o.id) ? ' · ✓ ในตะกร้า' : ''}</div></div>
+        <span class="tick">✓</span>
+      </button>`).join('');
+    const b = $('#opAdd'), o = pk.options.find(x => x.id === pkSel);
+    b.disabled = !o;
+    b.innerHTML = !o ? 'เลือกตัวเลือกก่อน' : inCart(pk.id, o.id) ? '✓ อยู่ในตะกร้าแล้ว · ดูตะกร้า' : '🛒 ใส่ตะกร้า · ' + fmtTHB(o.price);
+  };
+  $('#opList').addEventListener('click', e => { const b = e.target.closest('[data-op]'); if (b && !b.disabled) { pkSel = b.dataset.op; drawOptPick(); } });
+  $('#opAdd').onclick = () => {
+    if (!pk || !pkSel) return;
+    if (inCart(pk.id, pkSel)) { hide('optPick'); hide('detail'); openCart(); return; }
+    addToCart(pk.id, pkSel); drawOptPick();
+    if ($('#detail').classList.contains('open')) drawDetailCart();
+  };
 
   let cstep = 'cart', lastOrder = null, formOpenedAt = 0;
   const openCart = () => { cstep = 'cart'; drawCart(); show('cart'); };
@@ -794,16 +918,15 @@
     if (cstep === 'cart') {
       $('#cTitle').textContent = 'ตะกร้าสินค้า';
       body.innerHTML = lines.map(l => {
-        const it = l.it;
-        const img = it && it.photos.length ? `<img src="${url(it.photos[0])}" alt="">` : '<div class="noimg"></div>';
+        const img = l.photo ? `<img src="${url(l.photo)}" alt="">` : '<div class="noimg"></div>';
         return `<div class="line-item">
           ${img}
           <div class="info">
-            <div class="nm">${esc(it ? it.name : 'สินค้านี้ถูกลบแล้ว')}</div>
-            ${!it ? '<div class="warn">ไม่มีสินค้านี้แล้ว</div>' : it.sold ? '<div class="warn">สินค้าหมด · จะไม่ถูกสั่งซื้อ</div>' : `<div class="pr">${fmtTHB(it.price)}</div>`}
+            <div class="nm">${esc(l.name)}</div>
+            ${!l.it ? '<div class="warn">ไม่มีสินค้านี้แล้ว</div>' : l.bad ? '<div class="warn">ตัวเลือกนี้ไม่มีแล้ว · กรุณาลบแล้วเลือกใหม่</div>' : l.sold ? '<div class="warn">สินค้าหมด · จะไม่ถูกสั่งซื้อ</div>' : `<div class="pr">${fmtTHB(l.price)}</div>`}
           </div>
-          ${it && !it.sold ? `<div class="qty"><button data-q="-1" data-id="${l.id}" aria-label="ลด">−</button><span>${it ? Math.min(l.qty, it.stock) : l.qty}</span><button data-q="1" data-id="${l.id}" aria-label="เพิ่ม">+</button></div>` : ''}
-          <button class="x" data-del="${l.id}" title="เอาออก" aria-label="เอาออก">✕</button>
+          ${!l.bad && !l.sold ? `<div class="qty"><button data-q="-1" data-key="${esc(l.key)}" aria-label="ลด">−</button><span>${Math.min(l.qty, l.stock)}</span><button data-q="1" data-key="${esc(l.key)}" aria-label="เพิ่ม">+</button></div>` : ''}
+          <button class="x" data-del="${esc(l.key)}" title="เอาออก" aria-label="เอาออก">✕</button>
         </div>`;
       }).join('') +
       `<div class="total"><span>ยอดรวม</span><b>${fmtTHB(cartTotal())}</b></div>
@@ -828,9 +951,9 @@
   };
   $('#cartBody').addEventListener('click', async e => {
     const q = e.target.closest('[data-q]');
-    if (q) { const c = cart.find(x => x.id === q.dataset.id); const it = items.find(i => i.id === c.id); c.qty = Math.max(1, Math.min(it ? it.stock : 1, c.qty + +q.dataset.q)); saveCart(); drawCart(); return; }
+    if (q) { const l = cartLines().find(x => x.key === q.dataset.key); const c = cart.find(x => ckey(x.id, x.opt) === q.dataset.key); if (c && l) c.qty = Math.max(1, Math.min(l.stock || 1, c.qty + +q.dataset.q)); saveCart(); drawCart(); return; }
     const d = e.target.closest('[data-del]');
-    if (d) { cart = cart.filter(x => x.id !== d.dataset.del); saveCart(); render(); drawCart(); return; }
+    if (d) { cart = cart.filter(x => ckey(x.id, x.opt) !== d.dataset.del); saveCart(); render(); drawCart(); return; }
     if (e.target.id === 'toCheckout') { cstep = 'checkout'; drawCart(); return; }
     if (e.target.id === 'backCart') { cstep = 'cart'; drawCart(); return; }
     if (e.target.id === 'placeOrder') placeOrder(e.target);
@@ -848,15 +971,15 @@
     if (!lines.length) { cstep = 'cart'; drawCart(); return; }
     const order = {
       id: uid(), customer_name: name, phone, address, note, status: 'new',
-      items: lines.map(l => ({ id: l.id, name: l.it.name, price: l.it.price, qty: l.qty })),
-      total: lines.reduce((s, l) => s + l.it.price * l.qty, 0),
+      items: lines.map(l => ({ id: l.id, ...(l.opt ? { opt: l.opt } : {}), name: l.name, price: l.price, qty: l.qty })),
+      total: lines.reduce((s, l) => s + l.price * l.qty, 0),
       created_at: new Date().toISOString()
     };
     btn.disabled = true; btn.innerHTML = '<span class="spin"></span>กำลังส่งออเดอร์';
     try {
       await B.placeOrder(order);
       lastOrder = { no: order.id.slice(0, 8).toUpperCase(), total: order.total, phone };
-      cart = cart.filter(c => !lines.some(l => l.id === c.id)); saveCart(); await reload();
+      cart = cart.filter(c => !lines.some(l => l.key === ckey(c.id, c.opt))); saveCart(); await reload();
       cstep = 'done'; drawCart();
     } catch (e) {
       m.textContent = 'ส่งออเดอร์ไม่สำเร็จ: ' + (e.message || e);
@@ -909,6 +1032,8 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   // ── editor ──
   // photos: [{ path } (มีอยู่แล้ว) | { blob, preview } (ใหม่)]
   let editing = null, photos = [], dragFrom = null;
+  // opts: [{ id, name, price, stock, photo: { path } | { blob, preview } | null }]
+  let opts = [], optTarget = -1;
   const prev = p => p.preview || url(p.path);
   const openEditor = it => {
     editing = it || null;
@@ -922,7 +1047,8 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     $('#fNew').checked = it ? !!it.is_new : true;
     $('#delBtn').hidden = !it;
     $('#msg').textContent = '';
-    renderPhotos(); show('editor');
+    opts = it ? it.options.map(o => ({ ...o, photo: o.photo ? { path: o.photo } : null })) : [];
+    renderPhotos(); renderOpts(); show('editor');
     setTimeout(() => $('#fName').focus(), 50);
   };
   $('#addBtn').onclick = () => openEditor(null);
@@ -989,6 +1115,50 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     renderPhotos();
   };
 
+  // ── ตัวเลือกสินค้า (แอดมิน) ──
+  const fmtNum = v => { const n = String(v ?? '').replace(/[^\d]/g, '').slice(0, 10); return n ? Number(n).toLocaleString('en-US') : ''; };
+  const renderOpts = () => {
+    $('#priceWrap').hidden = $('#stockWrap').hidden = opts.length > 0;
+    $('#oCount').textContent = opts.length ? opts.length + ' ตัวเลือก' : '';
+    $('#optHint').textContent = opts.length
+      ? 'ราคาและจำนวนตั้งแยกที่แต่ละตัวเลือก · ลูกค้ากดใส่ตะกร้าแล้วจะเห็นรูปของแต่ละตัวเลือกให้เลือก'
+      : 'ถ้าสินค้ามีหลายแบบ (เช่น สี ขนาด รุ่น) กดเพิ่มตัวเลือก แต่ละตัวเลือกมีรูป ราคา และจำนวนของตัวเอง · ถ้ามีแบบเดียว ไม่ต้องเพิ่ม';
+    $('#optArea').innerHTML = opts.map((o, i) => `
+      <div class="optrow">
+        <button type="button" class="optph" data-ophoto="${i}" title="เลือกรูปตัวเลือกนี้">${o.photo ? `<img src="${prev(o.photo)}" alt="">` : '<span class="ic">📷</span>ใส่รูป'}</button>
+        <div class="optf">
+          <label class="wide"><small>ชื่อตัวเลือก</small><input class="in" data-oi="${i}" data-of="name" maxlength="60" placeholder="เช่น สีแดง / ขนาด L / รุ่นปี 2020" value="${esc(o.name)}"></label>
+          <label><small>ราคา (บาท)</small><input class="in" data-oi="${i}" data-of="price" inputmode="numeric" placeholder="0" value="${fmtNum(o.price)}"></label>
+          <label><small>จำนวน</small><input class="in" data-oi="${i}" data-of="stock" type="number" min="0" max="9999" inputmode="numeric" value="${o.stock}"></label>
+        </div>
+        <button type="button" class="x" data-odel="${i}" title="ลบตัวเลือก" aria-label="ลบตัวเลือก">✕</button>
+      </div>`).join('');
+  };
+  $('#addOpt').onclick = () => {
+    const price = Number($('#fPrice').value.replace(/[^\d]/g, '')) || '';
+    opts.push({ id: uid().slice(0, 8), name: '', price: opts.length ? opts[opts.length - 1].price : price, stock: 1, photo: null });
+    renderOpts();
+    const f = $('#optArea').querySelectorAll('[data-of="name"]'); if (f.length) f[f.length - 1].focus();
+  };
+  $('#optArea').addEventListener('input', e => {
+    const f = e.target.closest('[data-oi]'); if (!f) return;
+    const o = opts[+f.dataset.oi], k = f.dataset.of;
+    if (k === 'price') { f.value = fmtNum(f.value); o.price = Number(f.value.replace(/[^\d]/g, '')) || 0; }
+    else if (k === 'stock') o.stock = Math.max(0, Math.min(9999, parseInt(f.value, 10) || 0));
+    else o.name = f.value;
+  });
+  $('#optArea').addEventListener('click', e => {
+    const d = e.target.closest('[data-odel]');
+    if (d) { opts.splice(+d.dataset.odel, 1); renderOpts(); return; }
+    const p = e.target.closest('[data-ophoto]');
+    if (p) { optTarget = +p.dataset.ophoto; $('#optFile').click(); }
+  });
+  $('#optFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f || !f.type.startsWith('image/') || !opts[optTarget]) return;
+    const r = await shrink(f); if (r) { opts[optTarget].photo = r; renderOpts(); }
+  };
+
   document.querySelectorAll('[data-stock]').forEach(b => b.onclick = () => {
     const f = $('#fStock'); f.value = Math.max(0, Math.min(9999, (parseInt(f.value, 10) || 0) + +b.dataset.stock));
   });
@@ -1003,8 +1173,10 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     const m = $('#msg');
     if (!name) { m.textContent = 'กรุณาใส่ชื่ออะไหล่'; return; }
     if (!photos.length) { m.textContent = 'กรุณาเพิ่มรูปอย่างน้อย 1 รูป'; return; }
-    if (!price) { m.textContent = 'กรุณาใส่ราคา (บาท)'; return; }
-    const stock = Math.max(0, Math.min(9999, parseInt($('#fStock').value, 10) || 0));
+    const bo = opts.findIndex(o => !o.name.trim() || !o.price);
+    if (bo >= 0) { m.textContent = `ตัวเลือกที่ ${bo + 1}: กรุณาใส่ชื่อและราคาให้ครบ`; return; }
+    if (!opts.length && !price) { m.textContent = 'กรุณาใส่ราคา (บาท)'; return; }
+    const stock = opts.length ? opts.reduce((s, o) => s + o.stock, 0) : Math.max(0, Math.min(9999, parseInt($('#fStock').value, 10) || 0));
     const btn = $('#saveBtn'); btn.disabled = true;
     const uploaded = [];
     try {
@@ -1016,11 +1188,24 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         const path = await B.upload(p.blob);
         uploaded.push(path); urls.set(path, live ? await B.urlFor(path) : p.preview); paths.push(path);
       }
+      const options = [];
+      for (let i = 0; i < opts.length; i++) {
+        const o = opts[i]; let photo = null;
+        if (o.photo && o.photo.path) photo = o.photo.path;
+        else if (o.photo) {
+          btn.innerHTML = `<span class="spin"></span>อัปโหลดรูปตัวเลือก ${i + 1}/${opts.length}`;
+          photo = await B.upload(o.photo.blob);
+          uploaded.push(photo); urls.set(photo, live ? await B.urlFor(photo) : o.photo.preview);
+        }
+        options.push({ id: o.id, name: o.name.trim(), price: o.price, stock: o.stock, photo });
+      }
       btn.innerHTML = '<span class="spin"></span>กำลังบันทึก';
-      const part = { id: editing ? editing.id : uid(), name, price, stock, photos: paths, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
+      const part = { id: editing ? editing.id : uid(), name, price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
       if (!editing) part.created_at = new Date().toISOString();
+      // ส่งช่อง options เฉพาะเมื่อมี/เคยมีตัวเลือก (เว็บยังใช้ได้แม้ยังไม่ได้รัน upgrade-options.sql)
+      if (!options.length && !(editing && editing.options.length)) delete part.options;
       await B.save(part);
-      if (editing) await B.removeFiles(editing.photos.filter(p => !paths.includes(p)));
+      if (editing) { const keep = allPhotos(part); await B.removeFiles(allPhotos(editing).filter(p => !keep.includes(p))); }
       hide('editor'); await reload();
     } catch (e) {
       await B.removeFiles(uploaded).catch(() => {});
@@ -1030,7 +1215,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   };
   $('#delBtn').onclick = async () => {
     if (!editing || !confirm('ลบรายการนี้และรูปทั้งหมด?')) return;
-    try { await B.remove(editing.id); await B.removeFiles(editing.photos); hide('editor'); await reload(); }
+    try { await B.remove(editing.id); await B.removeFiles(allPhotos(editing)); hide('editor'); await reload(); }
     catch (e) { $('#msg').textContent = 'ลบไม่สำเร็จ: ' + (e.message || e); }
   };
 
