@@ -329,7 +329,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v13.1</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v13.2</span></div>
   </div>
 </div>
 
@@ -702,8 +702,9 @@ object-assign
     $('#catBar').hidden = !(seller && curCat && curCat !== 'none');
   };
   const renderNew = () => {
-    const list = items.filter(i => i.is_new);
-    $('#newSec').hidden = !list.length && !seller;
+    // กรองตามหมวดที่เลือก · หมวดที่ไม่มีของเข้าใหม่ ซ่อนแถวนี้ไปเลย
+    const list = items.filter(i => i.is_new && inCat(i));
+    $('#newSec').hidden = !list.length && !(seller && curCat === '');
     $('#newCount').textContent = list.length ? list.length + ' ชิ้น' : '';
     $('#newRow').innerHTML = list.length ? list.map(cardHTML).join('')
       : '<div class="empty">ยังไม่มีอะไหล่เข้าใหม่ · กด "+ เข้าใหม่" ที่การ์ด หรือติ๊กในหน้าแก้ไข</div>';
