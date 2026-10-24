@@ -14,6 +14,7 @@
     SHIPPING: 50,            // ค่าจัดส่งต่อออเดอร์ (บาท) ต้องตรงกับใน Supabase (upgrade-shipping.sql)
     CONTACT_LINE: '',        // LINE ID เช่น @p2pparts (เว้นว่างได้)
     CONTACT_PHONE: '',       // เบอร์โทร เช่น 0812345678 (เว้นว่างได้)
+    CONTACT_FB: '',          // ลิงก์ Facebook Page เช่น https://facebook.com/p2pmoto (เว้นว่างได้)
     PROMPTPAY: ''            // เบอร์/เลขบัตร PromptPay ที่แสดงหลังสั่งซื้อ (เว้นว่างได้)
   };
 </script>
@@ -231,6 +232,9 @@
   .contact{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
   .contact a{flex:1;min-width:140px;text-align:center;text-decoration:none;padding:13px;border-radius:14px;font:600 15px 'FC Vision Rounded',system-ui,sans-serif}
   .contact .line{background:#06C755;color:#fff}
+  .contact .fb{background:#1877F2;color:#fff}
+  .contactbtn{border-color:#06C755;color:#06C755}
+  @media (max-width:560px){.contactbtn{padding:8px 10px;font-size:12px}}
   .contact .tel{background:var(--hair);border:1px solid var(--border);color:var(--text)}
   .check{display:flex;align-items:center;gap:10px;font:600 14px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim);cursor:pointer}
   .check input{width:18px;height:18px;accent-color:var(--blue)}
@@ -288,6 +292,7 @@
       <div class="tools">
         <button class="ghost" id="ordersBtn" hidden>📋 ออเดอร์</button>
         <button class="ghost" id="sellerBtn" hidden>เข้าสู่ระบบ</button>
+        <button class="ghost contactbtn" id="contactBtn" hidden>💬 ติดต่อสอบถาม</button>
         <button class="circle cartbtn" id="cartBtn" title="ตะกร้า" aria-label="ตะกร้า">🛒<span class="badge" id="cartBadge" hidden>0</span></button>
         <button class="circle" id="themeBtn" title="สลับธีม" aria-label="สลับธีม">◐</button>
       </div>
@@ -430,6 +435,18 @@
     <div class="hint" style="margin:0 0 8px">กดเลือกแบบที่ต้องการ แล้วกดใส่ตะกร้า</div>
     <div class="optlist" id="opList"></div>
     <div class="actions" style="margin-top:16px"><button class="btn" data-close>ปิด</button><button class="btn primary" id="opAdd">🛒 ใส่ตะกร้า</button></div>
+  </div>
+</div>
+
+<!-- CONTACT (ลูกค้า) -->
+<div class="overlay" id="contactBox">
+  <div class="modal" role="dialog" aria-modal="true" style="width:min(420px,100%)">
+    <div class="mhead">
+      <div class="t">ติดต่อสอบถาม</div>
+      <button class="x" data-close aria-label="ปิด">✕</button>
+    </div>
+    <p class="hint" style="margin:0">สอบถามสินค้า เช็ครุ่นรถ หรือขอรูปเพิ่มเติม ทักร้านได้เลย</p>
+    <div class="contact" id="contactLinks" style="flex-direction:column"></div>
   </div>
 </div>
 
@@ -666,9 +683,12 @@ object-assign
       const href = 'https://line.me/R/ti/p/' + encodeURIComponent(id.startsWith('@') ? id : '~' + id);
       out.push(`<a class="line" href="${href}" target="_blank" rel="noopener">💬 LINE ${esc(id)}</a>`);
     }
+    if (C.CONTACT_FB) out.push(`<a class="fb" href="${esc(C.CONTACT_FB)}" target="_blank" rel="noopener">📘 Facebook</a>`);
     if (C.CONTACT_PHONE) out.push(`<a class="tel" href="tel:${esc(C.CONTACT_PHONE.replace(/[^\d+]/g, ''))}">📞 ${esc(C.CONTACT_PHONE)}</a>`);
     return out.join('');
   };
+  $('#contactBtn').hidden = !contactHTML();
+  $('#contactBtn').onclick = () => { $('#contactLinks').innerHTML = contactHTML(); $('#contactBox').classList.add('open'); };
   $('#fcontact').innerHTML = [C.CONTACT_LINE && 'LINE ' + esc(C.CONTACT_LINE), C.CONTACT_PHONE && 'โทร ' + esc(C.CONTACT_PHONE)].filter(Boolean).join(' · ');
 
   // ── grid ──
