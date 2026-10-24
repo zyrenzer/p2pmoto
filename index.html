@@ -129,6 +129,9 @@
   .side{position:sticky;top:16px;background:var(--panel);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--border);border-radius:20px;padding:12px;box-shadow:var(--shadow),inset 0 1px 0 var(--glass-hi)}
   .sidehead{font:600 12px 'FC Vision Rounded',ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:6px 10px 8px}
   .catrow{display:flex;align-items:center;gap:2px}
+  .grip{flex:none;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;padding:6px 2px 6px 4px;color:var(--faint);font-size:15px;line-height:1}
+  .catrow.dragging{opacity:.55}
+  .catrow.dragging .grip{cursor:grabbing}
   .cat{flex:1;min-width:0;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:10px 12px;border-radius:12px;border:none;background:transparent;color:var(--text);font:600 14px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;transition:background .2s}
   .cat:hover{background:var(--hair)}
   .cat.on{background:var(--blue);color:#fff}
@@ -338,7 +341,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v15</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v16</span></div>
   </div>
 </div>
 
@@ -578,8 +581,9 @@ object-assign
       async listThumbs() { return null; },
       async save(part) { await tx('parts', 'readwrite', s => s.put(part)); },
       async remove(id) { await tx('parts', 'readwrite', s => s.delete(id)); },
-      async listCats() { return ((await tx('cats', 'readonly', s => s.getAll())) || []).sort((a, b) => a.created_at.localeCompare(b.created_at)); },
+      async listCats() { return ((await tx('cats', 'readonly', s => s.getAll())) || []).sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.created_at.localeCompare(b.created_at)); },
       async saveCat(c) { await tx('cats', 'readwrite', s => s.put(c)); },
+      async saveCats(list) { for (const c of list) await tx('cats', 'readwrite', s => s.put(c)); },
       async removeCat(id) {
         await tx('cats', 'readwrite', s => s.delete(id));
         for (const p of await this.list()) if (p.category_id === id) await tx('parts', 'readwrite', s => s.put({ ...p, category_id: null }));
@@ -649,8 +653,9 @@ object-assign
     },
     async save(part) { const { error } = await sb.from('parts').upsert(part); if (error) throw error; },
     async remove(id) { const { error } = await sb.from('parts').delete().eq('id', id); if (error) throw error; },
-    async listCats() { const { data, error } = await sb.from('categories').select('*').order('created_at'); if (error) throw error; return data || []; },
+    async listCats() { const { data, error } = await sb.from('categories').select('*').order('sort').order('created_at'); if (error) throw error; return data || []; },
     async saveCat(c) { const { error } = await sb.from('categories').upsert(c); if (error) throw error; },
+    async saveCats(list) { const { error } = await sb.from('categories').upsert(list); if (error) throw error; },
     async removeCat(id) { const { error } = await sb.from('categories').delete().eq('id', id); if (error) throw error; },
     async patchParts(ids, patch) { if (!ids.length) return; const { error } = await sb.from('parts').update(patch).in('id', ids); if (error) throw error; },
     // ลูกค้าเพิ่มออเดอร์ได้อย่างเดียว อ่านไม่ได้ (จึงไม่ขอข้อมูลคืน)
@@ -723,7 +728,9 @@ object-assign
     if (curCat && curCat !== 'none' && !catName(curCat)) curCat = '';
     const n = f => items.filter(f).length;
     const none = n(i => !catName(i.category_id));
-    const row = (id, name, count) => `<div class="catrow">
+    const real = id => seller && id && id !== 'none';
+    const row = (id, name, count) => `<div class="catrow"${real(id) ? ` data-cid="${id}"` : ''}>
+        ${real(id) ? `<span class="grip" data-grip="${id}" title="ลากเพื่อสลับลำดับ" aria-hidden="true">⠿</span>` : ''}
         <button class="cat${curCat === id ? ' on' : ''}" data-cat="${id}"><span class="nm">${esc(name)}</span><span class="n">${count}</span></button>
         ${seller && id && id !== 'none' ? `<button class="cx" data-catdel="${id}" title="ลบหมวด" aria-label="ลบหมวด ${esc(name)}">×</button>` : ''}
       </div>`;
@@ -812,7 +819,7 @@ object-assign
     const f = $('#newCat'); const name = f.value.trim();
     if (!name) { f.focus(); return; }
     if (cats.some(c => c.name === name)) { alert('มีหมวดนี้แล้ว'); return; }
-    const c = { id: uid(), name, created_at: new Date().toISOString() };
+    const c = { id: uid(), name, sort: cats.reduce((m, x) => Math.max(m, x.sort || 0), 0) + 1, created_at: new Date().toISOString() };
     try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
     catch (e) { alert('เพิ่มหมวดไม่สำเร็จ: ' + (e.message || e)); }
   };
@@ -830,6 +837,37 @@ object-assign
     if (c) { curCat = c.dataset.cat; render(); }
   });
   $('#side').addEventListener('keydown', e => { if (e.target.id === 'newCat' && e.key === 'Enter') addCat(); });
+  // ลากที่ ⠿ เพื่อสลับลำดับหมวด (ใช้ได้ทั้งเมาส์และนิ้ว)
+  let drag = null;
+  $('#side').addEventListener('pointerdown', e => {
+    const g = e.target.closest('[data-grip]'); if (!g) return;
+    e.preventDefault();
+    drag = { row: g.closest('.catrow') };
+    drag.row.classList.add('dragging');
+    try { g.setPointerCapture(e.pointerId); } catch {}
+  });
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const over = el && el.closest('.catrow[data-cid]');
+    if (!over || over === drag.row) return;
+    const r = over.getBoundingClientRect(), me = drag.row.getBoundingClientRect();
+    const horiz = Math.abs(r.top - me.top) < 4;
+    const before = horiz ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
+    over.parentNode.insertBefore(drag.row, before ? over : over.nextSibling);
+  });
+  const endDrag = async () => {
+    if (!drag) return;
+    drag.row.classList.remove('dragging'); drag = null;
+    const order = [...$('#side').querySelectorAll('.catrow[data-cid]')].map(r => r.dataset.cid);
+    if (order.join() === cats.map(c => c.id).join()) return;
+    cats = order.map((id, i) => ({ ...cats.find(c => c.id === id), sort: i + 1 }));
+    render();
+    try { await B.saveCats(cats); }
+    catch (err) { alert('บันทึกลำดับไม่สำเร็จ: ' + (err.message || err)); reload(); }
+  };
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
 
   let picked = new Set();
   const drawPick = () => {
