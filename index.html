@@ -320,7 +320,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v8.1</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v8.2</span></div>
   </div>
 </div>
 
@@ -892,8 +892,8 @@
     if ($('#detail').classList.contains('open')) drawDetailCart();
   };
 
-  let cstep = 'cart', lastOrder = null, formOpenedAt = 0;
-  const openCart = () => { cstep = 'cart'; drawCart(); show('cart'); };
+  let cstep = 'cart', lastOrder = null, formOpenedAt = 0, maxKey = '';
+  const openCart = () => { cstep = 'cart'; maxKey = ''; drawCart(); show('cart'); };
   $('#cartBtn').onclick = openCart;
   const drawCart = () => {
     const body = $('#cartBody');
@@ -926,6 +926,7 @@
             <div class="nm">${esc(l.it ? l.it.name : l.name)}</div>
             ${l.o ? `<div class="op">ตัวเลือก: ${esc(l.o.name)}</div>` : ''}
             ${!l.it ? '<div class="warn">ไม่มีสินค้านี้แล้ว</div>' : l.bad ? '<div class="warn">ตัวเลือกนี้ไม่มีแล้ว · กรุณาลบแล้วเลือกใหม่</div>' : l.sold ? '<div class="warn">สินค้าหมด · จะไม่ถูกสั่งซื้อ</div>' : `<div class="pr">${fmtTHB(l.price)}</div>`}
+            ${l.key === maxKey ? `<div class="warn">มีของแค่ ${l.stock} ชิ้น</div>` : ''}
           </div>
           ${!l.bad && !l.sold ? `<div class="qty"><button data-q="-1" data-key="${esc(l.key)}" aria-label="ลด">−</button><span>${Math.min(l.qty, l.stock)}</span><button data-q="1" data-key="${esc(l.key)}" aria-label="เพิ่ม">+</button></div>` : ''}
           <button class="x" data-del="${esc(l.key)}" title="เอาออก" aria-label="เอาออก">✕</button>
@@ -953,7 +954,17 @@
   };
   $('#cartBody').addEventListener('click', async e => {
     const q = e.target.closest('[data-q]');
-    if (q) { const l = cartLines().find(x => x.key === q.dataset.key); const c = cart.find(x => ckey(x.id, x.opt) === q.dataset.key); if (c && l) c.qty = Math.max(1, Math.min(l.stock || 1, c.qty + +q.dataset.q)); saveCart(); drawCart(); return; }
+    if (q) {
+      const k = q.dataset.key, l = cartLines().find(x => x.key === k), c = cart.find(x => ckey(x.id, x.opt) === k);
+      if (!c || !l) return;
+      const n = Math.min(c.qty, l.stock) + +q.dataset.q;
+      maxKey = '';
+      // กด − ตอนเหลือ 1 ชิ้น = เอาออกจากตะกร้า · กด + เกินสต็อก = แจ้งว่ามีของเท่าไร
+      if (n < 1) { cart = cart.filter(x => x !== c); render(); }
+      else if (n > l.stock) { c.qty = l.stock; maxKey = k; }
+      else c.qty = n;
+      saveCart(); drawCart(); return;
+    }
     const d = e.target.closest('[data-del]');
     if (d) { cart = cart.filter(x => ckey(x.id, x.opt) !== d.dataset.del); saveCart(); render(); drawCart(); return; }
     if (e.target.id === 'toCheckout') { cstep = 'checkout'; drawCart(); return; }
