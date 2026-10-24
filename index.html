@@ -122,6 +122,50 @@
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
   [hidden]{display:none!important}
+  .layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start}
+  .side{position:sticky;top:16px;background:var(--panel);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--border);border-radius:20px;padding:12px;box-shadow:var(--shadow),inset 0 1px 0 var(--glass-hi)}
+  .sidehead{font:600 12px 'FC Vision Rounded',ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:6px 10px 8px}
+  .catrow{display:flex;align-items:center;gap:2px}
+  .cat{flex:1;min-width:0;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:10px 12px;border-radius:12px;border:none;background:transparent;color:var(--text);font:600 14px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;transition:background .2s}
+  .cat:hover{background:var(--hair)}
+  .cat.on{background:var(--blue);color:#fff}
+  .cat .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cat .n{font-size:12px;opacity:.6;flex:none}
+  .cx{width:26px;height:26px;border-radius:50%;border:none;background:transparent;color:var(--down);font:700 16px system-ui;cursor:pointer;flex:none;padding:0}
+  .cx:hover{background:var(--hair)}
+  .catadd{display:flex;gap:6px;margin-top:8px;padding-top:10px;border-top:1px solid var(--hair)}
+  .catadd .in{flex:1;min-width:0;padding:9px 12px;font-size:14px;border-radius:10px}
+  .catadd button{flex:none;width:38px;border-radius:10px;border:none;background:var(--blue);color:#fff;font:600 20px system-ui;cursor:pointer}
+  @media (max-width:820px){
+    .layout{grid-template-columns:minmax(0,1fr);gap:14px}
+    .side{position:static;display:flex;align-items:center;gap:6px;overflow-x:auto;padding:8px;border-radius:16px;scrollbar-width:none}
+    .side::-webkit-scrollbar{display:none}
+    .sidehead{display:none}
+    .catrow{flex:none}
+    .side .cat{flex:none;padding:8px 14px;background:var(--hair);white-space:nowrap}
+    .side .cat.on{background:var(--blue)}
+    .catadd{flex:none;border-top:none;margin:0;padding:0}
+    .catadd .in{width:130px}
+  }
+  .newsec{margin:0 0 26px}
+  .hrow{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 16px;scroll-snap-type:x proximity}
+  .hrow .card{flex:0 0 200px;scroll-snap-align:start}
+  .hrow .card:hover{transform:translateY(-3px)}
+  @media (max-width:560px){.hrow .card{flex-basis:46%}}
+  .hrow .empty{flex:1;padding:22px 16px}
+  .newbadge{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;background:linear-gradient(135deg,#FF453A,#FF9F0A);color:#fff;font:800 11px 'FC Vision Rounded',system-ui,sans-serif;letter-spacing:.06em;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:2}
+  .newtog{position:absolute;top:8px;right:8px;padding:4px 9px;border-radius:999px;border:none;background:rgba(0,0,0,.6);color:#fff;font:700 11px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;z-index:3}
+  .newtog.on{background:rgba(255,69,58,.92)}
+  .catbar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .picklist{max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:2px;margin:12px 0}
+  .pickrow{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;cursor:pointer}
+  .pickrow:hover{background:var(--hair)}
+  .pickrow img,.pickrow .noimg{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--img-bg);flex:none}
+  .pickrow .info{flex:1;min-width:0}
+  .pickrow .nm{font:600 14px 'FC Vision Rounded',system-ui,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pickrow .sub{font:500 12px 'FC Vision Rounded',system-ui,sans-serif;color:var(--faint)}
+  .pickrow input{width:18px;height:18px;accent-color:var(--blue);flex:none}
+  select.in{appearance:auto}
   .baht{font-size:.6em;font-weight:600;margin-left:.25em;letter-spacing:0}
   .pricebox .in{padding-left:16px}
   .cartbtn{position:relative}
@@ -212,9 +256,21 @@
 
     <div class="banner" id="demoBanner" hidden>โหมดตัวอย่าง: ยังไม่ได้ใส่ค่า Supabase ข้อมูลจะเก็บแค่ในเครื่องนี้ (ดูวิธีตั้งค่าในไฟล์ SETUP)</div>
 
+    <div class="layout">
+    <aside class="side" id="side" aria-label="หมวดหมู่"></aside>
+    <main style="min-width:0">
+
+    <section class="newsec" id="newSec" hidden>
+      <div class="gridhead" style="margin-bottom:10px">
+        <h2>🆕 อะไหล่เข้าใหม่</h2>
+        <span class="count" id="newCount"></span>
+      </div>
+      <div class="hrow" id="newRow"></div>
+    </section>
+
     <div class="gridhead">
       <div style="display:flex;align-items:center;gap:14px;flex:1 1 auto;min-width:0;flex-wrap:wrap">
-        <h2>อะไหล่ทั้งหมด</h2>
+        <h2 id="catTitle">อะไหล่ทั้งหมด</h2>
         <div class="search">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
           <input type="text" id="q" placeholder="ค้นหาชื่ออะไหล่">
@@ -226,9 +282,15 @@
       </div>
     </div>
 
-    <div class="grid" id="grid"><div class="empty"><span class="spin"></span>กำลังโหลด…</div></div>
+    <div class="catbar" id="catBar" hidden>
+      <button class="ghost" id="pickBtn">☰ เลือกอะไหล่เข้าหมวดนี้</button>
+    </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v4</span></div>
+    <div class="grid" id="grid"><div class="empty"><span class="spin"></span>กำลังโหลด…</div></div>
+    </main>
+    </div>
+
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v5</span></div>
   </div>
 </div>
 
@@ -280,6 +342,11 @@
         <div class="label"><span>จำนวนในสต็อก</span></div>
         <div class="qty" style="gap:10px"><button type="button" data-stock="-1" aria-label="ลด">−</button><input class="in" id="fStock" type="number" min="0" max="9999" inputmode="numeric" value="1" style="width:110px;text-align:center;font-weight:700;padding:10px"><button type="button" data-stock="1" aria-label="เพิ่ม">+</button><span class="hint" style="margin:0">ใส่ 0 = สินค้าหมด</span></div>
       </div>
+      <div>
+        <div class="label"><span>หมวดหมู่</span></div>
+        <select class="in" id="fCat"></select>
+      </div>
+      <label class="check"><input type="checkbox" id="fNew"> 🆕 แสดงในแถว "อะไหล่เข้าใหม่"</label>
       <div class="msg" id="msg"></div>
       <div class="actions">
         <button class="btn danger" id="delBtn" hidden>ลบ</button>
@@ -309,6 +376,23 @@
       <button class="x" data-close aria-label="ปิด">✕</button>
     </div>
     <div id="ordersBody"></div>
+  </div>
+</div>
+
+<!-- PICK PARTS FOR CATEGORY (แอดมิน) -->
+<div class="overlay" id="picker">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+    <div class="mhead">
+      <div class="t" id="pTitle">เลือกอะไหล่เข้าหมวด</div>
+      <button class="x" data-close aria-label="ปิด">✕</button>
+    </div>
+    <div class="search" style="flex:none;min-width:0">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--faint)" stroke-width="1.6"/><line x1="10.8" y1="10.8" x2="14.5" y2="14.5" stroke="var(--faint)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input type="text" id="pq" placeholder="ค้นหาชื่ออะไหล่">
+    </div>
+    <div class="picklist" id="pickList"></div>
+    <div class="msg" id="pMsg"></div>
+    <div class="actions"><button class="btn" data-close>ปิด</button><button class="btn primary" id="pSave">💾 บันทึก</button></div>
   </div>
 </div>
 
@@ -359,12 +443,13 @@
     let db = null; const blobs = new Map();
     const open = () => new Promise(res => {
       try {
-        const r = indexedDB.open('p2p_parts_web', 2);
+        const r = indexedDB.open('p2p_parts_web', 3);
         r.onupgradeneeded = () => {
           const d = r.result;
           if (!d.objectStoreNames.contains('parts')) d.createObjectStore('parts', { keyPath: 'id' });
           if (!d.objectStoreNames.contains('files')) d.createObjectStore('files');
           if (!d.objectStoreNames.contains('orders')) d.createObjectStore('orders', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('cats')) d.createObjectStore('cats', { keyPath: 'id' });
         };
         r.onsuccess = () => res(r.result); r.onerror = () => res(null);
       } catch { res(null); }
@@ -384,6 +469,15 @@
       async removeFiles(paths) { for (const p of paths) { await tx('files', 'readwrite', s => s.delete(p)); blobs.delete(p); } },
       async save(part) { await tx('parts', 'readwrite', s => s.put(part)); },
       async remove(id) { await tx('parts', 'readwrite', s => s.delete(id)); },
+      async listCats() { return ((await tx('cats', 'readonly', s => s.getAll())) || []).sort((a, b) => a.created_at.localeCompare(b.created_at)); },
+      async saveCat(c) { await tx('cats', 'readwrite', s => s.put(c)); },
+      async removeCat(id) {
+        await tx('cats', 'readwrite', s => s.delete(id));
+        for (const p of await this.list()) if (p.category_id === id) await tx('parts', 'readwrite', s => s.put({ ...p, category_id: null }));
+      },
+      async patchParts(ids, patch) {
+        for (const id of ids) { const p = await tx('parts', 'readonly', s => s.get(id)); if (p) await tx('parts', 'readwrite', s => s.put({ ...p, ...patch })); }
+      },
       // จำลอง trigger ฝั่ง Supabase: เช็คสต็อก ตัดสต็อก และคิดราคาจากข้อมูลจริง
       async placeOrder(o) {
         let total = 0; const out = [];
@@ -430,6 +524,10 @@
     async removeFiles(paths) { if (paths.length) await sb.storage.from(BUCKET).remove(paths); },
     async save(part) { const { error } = await sb.from('parts').upsert(part); if (error) throw error; },
     async remove(id) { const { error } = await sb.from('parts').delete().eq('id', id); if (error) throw error; },
+    async listCats() { const { data, error } = await sb.from('categories').select('*').order('created_at'); if (error) throw error; return data || []; },
+    async saveCat(c) { const { error } = await sb.from('categories').upsert(c); if (error) throw error; },
+    async removeCat(id) { const { error } = await sb.from('categories').delete().eq('id', id); if (error) throw error; },
+    async patchParts(ids, patch) { if (!ids.length) return; const { error } = await sb.from('parts').update(patch).in('id', ids); if (error) throw error; },
     // ลูกค้าเพิ่มออเดอร์ได้อย่างเดียว อ่านไม่ได้ (จึงไม่ขอข้อมูลคืน)
     async placeOrder(o) { const { error } = await sb.from('orders').insert(o); if (error) throw error; },
     async listOrders() { const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false }); if (error) throw error; return data || []; },
@@ -440,7 +538,7 @@
   $('#demoBanner').hidden = live;
 
   // ── state ──
-  let items = [], seller = false;
+  let items = [], cats = [], curCat = '', seller = false;
   const urls = new Map();
   const url = p => urls.get(p) || '';
   const resolveUrls = async list => { for (const it of list) for (const p of it.photos || []) if (!urls.has(p)) urls.set(p, await B.urlFor(p)); };
@@ -469,19 +567,14 @@
   $('#fcontact').innerHTML = [C.CONTACT_LINE && 'LINE ' + esc(C.CONTACT_LINE), C.CONTACT_PHONE && 'โทร ' + esc(C.CONTACT_PHONE)].filter(Boolean).join(' · ');
 
   // ── grid ──
-  const render = () => {
-    const q = $('#q').value.trim().toLowerCase();
-    const list = items.filter(it => !q || it.name.toLowerCase().includes(q));
-    const g = $('#grid');
-    if (!items.length) {
-      g.innerHTML = `<div class="empty"><b>ยังไม่มีอะไหล่ที่ลงขาย</b>${seller ? 'กดปุ่ม + เพื่อเพิ่มรูปอะไหล่และตั้งราคา' : 'แวะมาดูใหม่เร็ว ๆ นี้'}</div>`;
-    } else if (!list.length) {
-      g.innerHTML = '<div class="empty">ไม่พบอะไหล่ที่ค้นหา</div>';
-    } else {
-      g.innerHTML = list.map(it => `
+  const catName = id => (cats.find(c => c.id === id) || {}).name || '';
+  const inCat = it => curCat === '' || (curCat === 'none' ? !catName(it.category_id) : it.category_id === curCat);
+  const cardHTML = it => `
         <div class="card${it.sold ? ' is-sold' : ''}" data-id="${it.id}" tabindex="0">
           <div class="thumb">
             ${it.photos.length ? `<img src="${url(it.photos[0])}" alt="" loading="lazy">` : '<div class="none">NO PHOTO</div>'}
+            ${it.is_new ? '<span class="newbadge">NEW</span>' : ''}
+            ${seller ? `<button class="newtog${it.is_new ? ' on' : ''}" data-new="${it.id}" title="${it.is_new ? 'เอาออกจากอะไหล่เข้าใหม่' : 'เพิ่มเป็นอะไหล่เข้าใหม่'}">${it.is_new ? '× เข้าใหม่' : '+ เข้าใหม่'}</button>` : ''}
             ${it.photos.length > 1 ? `<div class="pill">📷 ${it.photos.length}</div>` : ''}
             ${it.sold ? '<div class="sold"><span>สินค้าหมด</span></div>' : ''}
           </div>
@@ -491,24 +584,122 @@
             <div class="hint" style="margin-top:2px">${it.sold ? 'สินค้าหมด' : 'เหลือ ' + it.stock + ' ชิ้น'}</div>
             ${cartBtnHTML(it)}
           </div>
-        </div>`).join('');
+        </div>`;
+  const renderSide = () => {
+    if (curCat && curCat !== 'none' && !catName(curCat)) curCat = '';
+    const n = f => items.filter(f).length;
+    const none = n(i => !catName(i.category_id));
+    const row = (id, name, count) => `<div class="catrow">
+        <button class="cat${curCat === id ? ' on' : ''}" data-cat="${id}"><span class="nm">${esc(name)}</span><span class="n">${count}</span></button>
+        ${seller && id && id !== 'none' ? `<button class="cx" data-catdel="${id}" title="ลบหมวด" aria-label="ลบหมวด ${esc(name)}">×</button>` : ''}
+      </div>`;
+    $('#side').innerHTML = '<div class="sidehead">หมวดหมู่</div>' +
+      row('', 'ทั้งหมด', items.length) +
+      cats.map(c => row(c.id, c.name, n(i => i.category_id === c.id))).join('') +
+      (cats.length && none ? row('none', 'อื่น ๆ', none) : '') +
+      (seller ? '<div class="catadd"><input class="in" id="newCat" maxlength="60" placeholder="ชื่อหมวดใหม่"><button id="addCat" title="เพิ่มหมวด" aria-label="เพิ่มหมวด">+</button></div>' : '');
+    $('#side').hidden = !cats.length && !seller;
+    $('#catTitle').textContent = curCat === '' ? 'อะไหล่ทั้งหมด' : curCat === 'none' ? 'อื่น ๆ' : catName(curCat);
+    $('#catBar').hidden = !(seller && curCat && curCat !== 'none');
+  };
+  const renderNew = () => {
+    const list = items.filter(i => i.is_new);
+    $('#newSec').hidden = !list.length && !seller;
+    $('#newCount').textContent = list.length ? list.length + ' ชิ้น' : '';
+    $('#newRow').innerHTML = list.length ? list.map(cardHTML).join('')
+      : '<div class="empty">ยังไม่มีอะไหล่เข้าใหม่ · กด "+ เข้าใหม่" ที่การ์ด หรือติ๊กในหน้าแก้ไข</div>';
+  };
+  const render = () => {
+    renderSide(); renderNew();
+    const q = $('#q').value.trim().toLowerCase();
+    const list = items.filter(it => inCat(it) && (!q || it.name.toLowerCase().includes(q)));
+    const g = $('#grid');
+    if (!items.length) {
+      g.innerHTML = `<div class="empty"><b>ยังไม่มีอะไหล่ที่ลงขาย</b>${seller ? 'กดปุ่ม + เพื่อเพิ่มรูปอะไหล่และตั้งราคา' : 'แวะมาดูใหม่เร็ว ๆ นี้'}</div>`;
+    } else if (!list.length) {
+      g.innerHTML = `<div class="empty">${q ? 'ไม่พบอะไหล่ที่ค้นหา' : seller && curCat && curCat !== 'none' ? 'หมวดนี้ยังไม่มีอะไหล่ · กด "เลือกอะไหล่เข้าหมวดนี้"' : 'หมวดนี้ยังไม่มีอะไหล่'}</div>`;
+    } else {
+      g.innerHTML = list.map(cardHTML).join('');
     }
     $('#count').textContent = list.length + ' ชิ้น';
     $('#fcount').textContent = items.filter(i => !i.sold).length + ' รายการที่มีของ';
   };
   const reload = async () => {
-    try { items = await B.list(); items.forEach(i => { i.photos = i.photos || []; i.price = Number(i.price) || 0; i.stock = Math.max(0, Number(i.stock ?? 1) || 0); i.sold = i.stock <= 0; }); }
+    try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(i => { i.is_new = !!i.is_new; i.photos = i.photos || []; i.price = Number(i.price) || 0; i.stock = Math.max(0, Number(i.stock ?? 1) || 0); i.sold = i.stock <= 0; }); }
     catch (e) { $('#grid').innerHTML = `<div class="empty"><b>โหลดข้อมูลไม่ได้</b>${esc(e.message || e)}</div>`; return; }
     await resolveUrls(items); render();
   };
   $('#q').oninput = render;
   const pick = e => {
+    const nb = e.target.closest('[data-new]');
+    if (nb) { e.stopPropagation(); toggleNew(nb.dataset.new); return; }
     const a = e.target.closest('[data-cart]');
     if (a) { e.stopPropagation(); if (inCart(a.dataset.cart)) openCart(); else addToCart(a.dataset.cart); return; }
     const c = e.target.closest('.card'); if (c) openDetail(items.find(i => i.id === c.dataset.id));
   };
   $('#grid').addEventListener('click', pick);
   $('#grid').addEventListener('keydown', e => { if (e.key === 'Enter') pick(e); });
+  $('#newRow').addEventListener('click', pick);
+  $('#newRow').addEventListener('keydown', e => { if (e.key === 'Enter') pick(e); });
+
+  // ── หมวดหมู่ / อะไหล่เข้าใหม่ (แอดมิน) ──
+  const toggleNew = async id => {
+    const it = items.find(i => i.id === id); if (!it) return;
+    try { await B.patchParts([id], { is_new: !it.is_new }); it.is_new = !it.is_new; render(); }
+    catch (e) { alert('บันทึกไม่สำเร็จ: ' + (e.message || e)); }
+  };
+  const addCat = async () => {
+    const f = $('#newCat'); const name = f.value.trim();
+    if (!name) { f.focus(); return; }
+    if (cats.some(c => c.name === name)) { alert('มีหมวดนี้แล้ว'); return; }
+    const c = { id: uid(), name, created_at: new Date().toISOString() };
+    try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
+    catch (e) { alert('เพิ่มหมวดไม่สำเร็จ: ' + (e.message || e)); }
+  };
+  $('#side').addEventListener('click', async e => {
+    const d = e.target.closest('[data-catdel]');
+    if (d) {
+      const id = d.dataset.catdel;
+      if (!confirm(`ลบหมวด "${catName(id)}"?\nอะไหล่ในหมวดนี้จะไม่ถูกลบ แค่ย้ายไปอยู่ "อื่น ๆ"`)) return;
+      try { await B.removeCat(id); if (curCat === id) curCat = ''; await reload(); }
+      catch (err) { alert('ลบหมวดไม่สำเร็จ: ' + (err.message || err)); }
+      return;
+    }
+    if (e.target.closest('#addCat')) { addCat(); return; }
+    const c = e.target.closest('[data-cat]');
+    if (c) { curCat = c.dataset.cat; render(); }
+  });
+  $('#side').addEventListener('keydown', e => { if (e.target.id === 'newCat' && e.key === 'Enter') addCat(); });
+
+  let picked = new Set();
+  const drawPick = () => {
+    const q = $('#pq').value.trim().toLowerCase();
+    $('#pickList').innerHTML = items.filter(i => !q || i.name.toLowerCase().includes(q)).map(i => `
+      <label class="pickrow">
+        <input type="checkbox" data-pick="${i.id}" ${picked.has(i.id) ? 'checked' : ''}>
+        ${i.photos.length ? `<img src="${url(i.photos[0])}" alt="">` : '<div class="noimg"></div>'}
+        <div class="info"><div class="nm">${esc(i.name)}</div><div class="sub">${catName(i.category_id) ? 'หมวด: ' + esc(catName(i.category_id)) : 'ยังไม่มีหมวด'}</div></div>
+      </label>`).join('') || '<div class="empty" style="padding:24px">ไม่พบอะไหล่</div>';
+  };
+  $('#pickBtn').onclick = () => {
+    picked = new Set(items.filter(i => i.category_id === curCat).map(i => i.id));
+    $('#pTitle').textContent = 'เลือกอะไหล่เข้าหมวด "' + catName(curCat) + '"';
+    $('#pq').value = ''; $('#pMsg').textContent = '';
+    drawPick(); show('picker');
+  };
+  $('#pq').oninput = drawPick;
+  $('#pickList').addEventListener('change', e => {
+    const c = e.target.closest('[data-pick]'); if (!c) return;
+    c.checked ? picked.add(c.dataset.pick) : picked.delete(c.dataset.pick);
+  });
+  $('#pSave').onclick = async () => {
+    const add = [...picked].filter(id => (items.find(i => i.id === id) || {}).category_id !== curCat);
+    const drop = items.filter(i => i.category_id === curCat && !picked.has(i.id)).map(i => i.id);
+    const b = $('#pSave'); b.disabled = true;
+    try { await B.patchParts(add, { category_id: curCat }); await B.patchParts(drop, { category_id: null }); hide('picker'); await reload(); }
+    catch (e) { $('#pMsg').textContent = 'บันทึกไม่สำเร็จ: ' + (e.message || e); }
+    b.disabled = false;
+  };
 
   // ── overlays ──
   const show = id => $('#' + id).classList.add('open');
@@ -722,6 +913,9 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     $('#fName').value = it ? it.name : '';
     $('#fPrice').value = it && it.price ? Number(it.price).toLocaleString('en-US') : '';
     $('#fStock').value = it ? it.stock : 1;
+    $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    $('#fCat').value = it ? (catName(it.category_id) ? it.category_id : '') : (curCat && curCat !== 'none' ? curCat : '');
+    $('#fNew').checked = it ? !!it.is_new : true;
     $('#delBtn').hidden = !it;
     $('#msg').textContent = '';
     renderPhotos(); show('editor');
@@ -819,7 +1013,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         uploaded.push(path); urls.set(path, live ? await B.urlFor(path) : p.preview); paths.push(path);
       }
       btn.innerHTML = '<span class="spin"></span>กำลังบันทึก';
-      const part = { id: editing ? editing.id : uid(), name, price, stock, photos: paths };
+      const part = { id: editing ? editing.id : uid(), name, price, stock, photos: paths, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
       if (!editing) part.created_at = new Date().toISOString();
       await B.save(part);
       if (editing) await B.removeFiles(editing.photos.filter(p => !paths.includes(p)));
