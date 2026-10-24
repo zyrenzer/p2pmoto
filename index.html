@@ -193,6 +193,7 @@
   .pickrow img,.pickrow .noimg{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--img-bg);flex:none}
   .pickrow .info{flex:1;min-width:0}
   .pickrow .nm{font:600 14px 'FC Vision Rounded',system-ui,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pickrow .mdl{font:500 12.5px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pickrow .sub{font:500 12px 'FC Vision Rounded',system-ui,sans-serif;color:var(--faint)}
   .pickrow input{width:18px;height:18px;accent-color:var(--blue);flex:none}
   select.in{appearance:auto}
@@ -360,7 +361,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.1</span></div>
   </div>
 </div>
 
@@ -984,7 +985,7 @@ object-assign
       <label class="pickrow">
         <input type="checkbox" data-pick="${i.id}" ${picked.has(i.id) ? 'checked' : ''}>
         ${i.photos.length ? tImg(i.photos[0], '', '44px') : '<div class="noimg"></div>'}
-        <div class="info"><div class="nm">${esc(i.name)}</div><div class="sub">${catName(i.category_id) ? 'หมวด: ' + esc(catName(i.category_id)) : 'ยังไม่มีหมวด'}</div></div>
+        <div class="info"><div class="nm">${esc(i.name)}</div>${i.model ? `<div class="mdl">🏍 ${esc(i.model)}</div>` : ''}<div class="sub">${catName(i.category_id) ? 'หมวด: ' + esc(catName(i.category_id)) : 'ยังไม่มีหมวด'}</div></div>
       </label>`).join('') || '<div class="empty" style="padding:24px">ไม่พบอะไหล่</div>';
   };
   $('#pickBtn').onclick = () => {
