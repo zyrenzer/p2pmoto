@@ -361,7 +361,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.1</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.2</span></div>
   </div>
 </div>
 
@@ -405,7 +405,7 @@
         <input class="in" id="fModel" type="text" maxlength="120" autocomplete="off" placeholder="เช่น Monster 821 / Multistrada 1200 (2010-2014)">
       </div>
       <div>
-        <div class="label"><span>SKU / รหัสอะไหล่</span><span class="n">ไม่บังคับ</span></div>
+        <div class="label"><span>P/N / รหัสอะไหล่</span><span class="n">ไม่บังคับ</span></div>
         <input class="in" id="fSku" type="text" maxlength="60" autocomplete="off" placeholder="เช่น 73740321B">
       </div>
       <div>
@@ -1038,7 +1038,7 @@ object-assign
     cur = it; ci = 0; drawViewer();
     $('#dName').textContent = it.name;
     $('#dModel').textContent = it.model ? 'รุ่นรถ: ' + it.model : '';
-    $('#dSku').textContent = it.sku ? 'SKU: ' + it.sku : '';
+    $('#dSku').textContent = it.sku ? 'P/N: ' + it.sku : '';
     $('#dPrice').innerHTML = it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
     $('#dOpts').hidden = !it.options.length;
     $('#dOpts').innerHTML = it.options.map(o => `<button data-dopt="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>${o.photo ? tImg(o.photo, '', '30px') : '<span class="noimg"></span>'}${esc(o.name)}${o.stock > 0 ? '' : ' (หมด)'}</button>`).join('');
@@ -1108,7 +1108,7 @@ object-assign
       <button class="optcard${o.id === pkSel ? ' on' : ''}" data-op="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>
         <div class="im">${o.photo ? tImg(o.photo, '', '150px') : 'ไม่มีรูป'}</div>
         <div class="tx"><div class="nm" title="${esc(o.name)}">${esc(o.name)}</div><div class="pr">${fmtTHB(o.price)}</div>
-        <div class="st">${o.stock > 0 ? 'เหลือ ' + o.stock + ' ชิ้น' : 'หมด'}${inCart(pk.id, o.id) ? ' · ✓ ในตะกร้า' : ''}</div>${o.sku ? `<div class="st">SKU: ${esc(o.sku)}</div>` : ''}</div>
+        <div class="st">${o.stock > 0 ? 'เหลือ ' + o.stock + ' ชิ้น' : 'หมด'}${inCart(pk.id, o.id) ? ' · ✓ ในตะกร้า' : ''}</div>${o.sku ? `<div class="st">P/N: ${esc(o.sku)}</div>` : ''}</div>
         <span class="tick">✓</span>
       </button>`).join('');
     const b = $('#opAdd'), o = pk.options.find(x => x.id === pkSel);
@@ -1427,7 +1427,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         <button type="button" class="optph" data-ophoto="${i}" title="เลือกรูปตัวเลือกนี้">${o.photo ? `<img src="${prev(o.photo)}" alt="">` : '<span class="ic">📷</span>ใส่รูป'}</button>
         <div class="optf">
           <label class="wide"><small>ชื่อตัวเลือก</small><input class="in" data-oi="${i}" data-of="name" maxlength="60" placeholder="เช่น สีแดง / ขนาด L / รุ่นปี 2020" value="${esc(o.name)}"></label>
-          <label class="wide"><small>SKU ตัวเลือก (ถ้ามี)</small><input class="in" data-oi="${i}" data-of="sku" maxlength="60" placeholder="เช่น 73740321B" value="${esc(o.sku || '')}"></label>
+          <label class="wide"><small>P/N ตัวเลือก (ถ้ามี)</small><input class="in" data-oi="${i}" data-of="sku" maxlength="60" placeholder="เช่น 73740321B" value="${esc(o.sku || '')}"></label>
           <label><small>ราคา (บาท)</small><input class="in" data-oi="${i}" data-of="price" inputmode="numeric" placeholder="0" value="${fmtNum(o.price)}"></label>
           <label><small>จำนวน</small><input class="in" data-oi="${i}" data-of="stock" type="number" min="0" max="9999" inputmode="numeric" value="${o.stock}"></label>
         </div>
