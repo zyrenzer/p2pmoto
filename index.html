@@ -427,7 +427,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.2</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.3</span></div>
   </div>
 </div>
 
@@ -1590,7 +1590,7 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
   // สวิตช์ของใหม่ / มือสอง ในหน้าแก้ไข: เปลี่ยนชุดหมวดหมู่ในช่องเลือก
   let edUsed = false;
   const inSet = id => { const c = catOf(id); const top = c && (parentOf(id) ? catOf(parentOf(id)) : c); return !!top && !!top.used === edUsed; };
-  const catOpts = () => '<option value="">— ไม่มีหมวด —</option>' + mainsOf(edUsed).map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(k.name)}</option>`).join('')).join('');
+  const catOpts = () => '<option value="">— ไม่มีหมวด —</option>' + mainsOf(edUsed).map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(c.name)} ${esc(k.name)}</option>`).join('')).join('');
   const catRow = id => `<div class="catmore"><select class="in" data-xcat>${catOpts()}</select><button type="button" class="x" data-xdel title="เอาหมวดนี้ออก" aria-label="เอาหมวดนี้ออก">✕</button></div>`;
   const pickedCats = () => [...new Set([$('#fCat').value, ...[...document.querySelectorAll('[data-xcat]')].map(s => s.value)].filter(Boolean))];
   // list = หมวดทั้งหมดของสินค้า (ตัวแรก = หมวดหลัก)
