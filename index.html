@@ -245,6 +245,18 @@
   .viewer img{width:100%;height:100%;object-fit:contain;display:block}
   .nav{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;border:none;background:rgba(0,0,0,0.45);color:#fff;font:600 20px system-ui;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .nav.prev{left:10px}.nav.next{right:10px}
+  .viewer img{cursor:zoom-in}
+  .lb{position:fixed;inset:0;z-index:200;background:#000;display:none;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;overscroll-behavior:contain}
+  .lb.open{display:block}
+  .lbtrack{display:flex;height:100%;will-change:transform}
+  .lbs{flex:0 0 100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .lbs img{max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;pointer-events:none;-webkit-user-drag:none}
+  .lbx{position:absolute;z-index:2;top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,0.18);color:#fff;font:600 20px system-ui;cursor:pointer}
+  .lbidx{position:absolute;z-index:1;top:calc(env(safe-area-inset-top,0px) + 24px);left:0;right:0;text-align:center;color:#fff;font:700 14px 'FC Vision Rounded',system-ui,sans-serif;pointer-events:none}
+  .lb .nav{z-index:2;width:48px;height:48px;font-size:28px;background:rgba(255,255,255,0.18)}
+  .lb .nav.prev{left:calc(env(safe-area-inset-left,0px) + 12px)}.lb .nav.next{right:calc(env(safe-area-inset-right,0px) + 12px)}
+  .lb .nav[hidden]{display:none}
+  @media (hover:none){.lb .nav{display:none}}
   .idx{position:absolute;right:10px;bottom:10px;padding:3px 9px;border-radius:999px;background:rgba(0,0,0,0.5);color:#fff;font:700 12px 'FC Vision Rounded',system-ui,sans-serif}
   .strip{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:thin}
   .strip button{flex:none;width:60px;height:60px;border-radius:10px;overflow:hidden;border:2px solid transparent;padding:0;background:var(--img-bg);cursor:pointer;opacity:.6}
@@ -362,7 +374,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.3</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.4</span></div>
   </div>
 </div>
 
@@ -1015,7 +1027,7 @@ object-assign
   // เปิดหน้าต่างอยู่ = ล็อกหน้าด้านหลังไม่ให้เลื่อน (วิธีนี้ใช้ได้กับ iPhone Safari ด้วย)
   let lockY = null;
   const syncLock = () => {
-    const open = !!document.querySelector('.overlay.open'), b = document.body.style;
+    const open = !!document.querySelector('.overlay.open, .lb.open'), b = document.body.style;
     if (open && lockY === null) {
       lockY = window.scrollY;
       Object.assign(b, { position: 'fixed', top: -lockY + 'px', left: '0', right: '0', width: '100%', overflow: 'hidden' });
@@ -1043,7 +1055,107 @@ object-assign
     $('#strip').innerHTML = ph.length > 1 ? ph.map((p, i) => `<button data-i="${i}" class="${i === ci ? 'cur' : ''}">${tImg(p, '', '60px')}</button>`).join('') : '';
   };
   const step = d => { if (!cur || cur.photos.length < 2) return; ci = (ci + d + cur.photos.length) % cur.photos.length; drawViewer(); };
-  $('#viewer').addEventListener('click', e => { if (e.target.closest('.prev')) step(-1); else if (e.target.closest('.next')) step(1); });
+  $('#viewer').addEventListener('click', e => { if (e.target.closest('.prev')) step(-1); else if (e.target.closest('.next')) step(1); else if (e.target.tagName === 'IMG') openLB(ci); });
+
+  // ── ดูรูปเต็มจอ: ซูมสองนิ้ว / แตะสองครั้ง / ลูกกลิ้งเมาส์ · ปัดซ้ายขวาเปลี่ยนรูป ──
+  const lb = document.createElement('div');
+  lb.className = 'lb';
+  lb.innerHTML = '<div class="lbtrack"></div><div class="lbidx"></div><button class="lbx" aria-label="ปิด">✕</button><button class="nav prev" aria-label="ก่อนหน้า">‹</button><button class="nav next" aria-label="ถัดไป">›</button>';
+  document.body.appendChild(lb);
+  const track = lb.querySelector('.lbtrack'), pts = new Map();
+  let li = 0, sc = 1, zx = 0, zy = 0, dx = 0, g = null, lastTap = 0;
+  const nLB = () => (cur ? cur.photos.length : 0);
+  const curImg = () => track.children[li] && track.children[li].firstElementChild;
+  const clampZ = () => {
+    if (sc <= 1) { sc = 1; zx = zy = 0; return; }
+    const im = curImg(); if (!im) return;
+    const W = lb.clientWidth, H = lb.clientHeight, w = im.offsetWidth * sc, h = im.offsetHeight * sc;
+    const mx = Math.max(0, (w - W) / 2), my = Math.max(0, (h - H) / 2);
+    zx = Math.max(-mx, Math.min(mx, zx)); zy = Math.max(-my, Math.min(my, zy));
+  };
+  const applyZ = anim => { const im = curImg(); if (!im) return; im.style.transition = anim ? 'transform .25s ease' : 'none'; im.style.transform = `translate(${zx}px,${zy}px) scale(${sc})`; };
+  const applyT = anim => { track.style.transition = anim ? 'transform .3s ease' : 'none'; track.style.transform = `translateX(calc(${-li * 100}% + ${dx}px))`; };
+  const resetZ = () => { sc = 1; zx = zy = 0; [...track.children].forEach(s => { s.firstElementChild.style.transform = ''; }); };
+  const drawLB = () => { lb.querySelector('.lbidx').textContent = nLB() > 1 ? (li + 1) + ' / ' + nLB() : ''; lb.querySelector('.prev').hidden = lb.querySelector('.next').hidden = nLB() < 2; };
+  const goLB = i => { resetZ(); li = Math.max(0, Math.min(nLB() - 1, i)); dx = 0; applyT(true); drawLB(); };
+  const openLB = i => {
+    if (!nLB()) return;
+    track.innerHTML = cur.photos.map(p => `<div class="lbs"><img src="${url(p)}" alt="" draggable="false"></div>`).join('');
+    li = i; dx = 0; resetZ(); applyT(false); drawLB(); pts.clear(); g = null;
+    lb.classList.add('open');
+  };
+  const closeLB = () => { lb.classList.remove('open'); track.innerHTML = ''; if (cur) { ci = li; drawViewer(); } };
+  // ซูมรอบจุด (px, py) บนจอ
+  const zoomAt = (ns, px, py, base) => {
+    const r = lb.getBoundingClientRect(), cx = px - r.left - r.width / 2, cy = py - r.top - r.height / 2;
+    ns = Math.max(1, Math.min(5, ns));
+    zx = cx - (cx - base.zx) * ns / base.sc; zy = cy - (cy - base.zy) * ns / base.sc; sc = ns;
+  };
+  lb.querySelector('.lbx').onclick = closeLB;
+  lb.querySelector('.prev').onclick = () => goLB(li - 1);
+  lb.querySelector('.next').onclick = () => goLB(li + 1);
+  lb.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      g = { mode: 'pinch', d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, sc, zx, zy };
+      if (dx) { dx = 0; applyT(true); }
+    } else if (pts.size === 1) g = { mode: sc > 1 ? 'pan' : 'swipe', x: e.clientX, y: e.clientY, zx, zy, moved: false };
+  });
+  lb.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !g) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.mode === 'pinch' && pts.size >= 2) {
+      const [a, b] = [...pts.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      zoomAt(g.sc * Math.hypot(a.x - b.x, a.y - b.y) / g.d, g.mx, g.my, g);
+      zx += mx - g.mx; zy += my - g.my; clampZ(); applyZ(false);
+    } else if (g.mode === 'pan') {
+      zx = g.zx + e.clientX - g.x; zy = g.zy + e.clientY - g.y;
+      if (Math.abs(e.clientX - g.x) + Math.abs(e.clientY - g.y) > 8) g.moved = true;
+      clampZ(); applyZ(false);
+    } else if (g.mode === 'swipe') {
+      dx = e.clientX - g.x;
+      if (Math.abs(dx) + Math.abs(e.clientY - g.y) > 8) g.moved = true;
+      if ((li === 0 && dx > 0) || (li === nLB() - 1 && dx < 0)) dx /= 3;
+      applyT(false);
+    }
+  });
+  const lbUp = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (!g) return;
+    if (g.mode === 'pinch') {
+      if (sc < 1.05) { sc = 1; zx = zy = 0; applyZ(true); }
+      const p = [...pts.values()][0];
+      g = p ? { mode: sc > 1 ? 'pan' : 'swipe', x: p.x, y: p.y, zx, zy, moved: true } : null;
+      return;
+    }
+    if (g.mode === 'swipe' && g.moved) {
+      const lim = Math.min(80, lb.clientWidth * 0.18);
+      if (dx < -lim && li < nLB() - 1) goLB(li + 1); else if (dx > lim && li > 0) goLB(li - 1); else { dx = 0; applyT(true); }
+    }
+    if (!g.moved && e.type === 'pointerup') {
+      const now = Date.now();
+      if (now - lastTap < 320) {
+        if (sc > 1) { sc = 1; zx = zy = 0; } else { zoomAt(2.5, e.clientX, e.clientY, { sc: 1, zx: 0, zy: 0 }); clampZ(); }
+        applyZ(true); lastTap = 0;
+      } else lastTap = now;
+    }
+    g = null;
+  };
+  lb.addEventListener('pointerup', lbUp);
+  lb.addEventListener('pointercancel', lbUp);
+  lb.addEventListener('wheel', e => {
+    e.preventDefault();
+    zoomAt(sc * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX, e.clientY, { sc, zx, zy }); clampZ(); applyZ(false);
+  }, { passive: false });
+  window.addEventListener('keydown', e => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') closeLB(); else if (e.key === 'ArrowLeft') goLB(li - 1); else if (e.key === 'ArrowRight') goLB(li + 1); else return;
+    e.stopImmediatePropagation(); e.preventDefault();
+  }, true);
+  window.addEventListener('resize', () => { if (lb.classList.contains('open')) { applyT(false); clampZ(); applyZ(false); } });
   $('#strip').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) { ci = +b.dataset.i; drawViewer(); } });
   let tx0 = null;
   $('#viewer').addEventListener('touchstart', e => { tx0 = e.touches[0].clientX; }, { passive: true });
