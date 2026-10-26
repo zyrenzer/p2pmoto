@@ -427,7 +427,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.1</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.2</span></div>
   </div>
 </div>
 
@@ -1313,7 +1313,7 @@ object-assign
     cur = it; ci = 0; drawViewer();
     $('#dName').textContent = it.name;
     // สำหรับรุ่น: หมวดหลัก › หมวดย่อย ของทุกหมวดที่สินค้าอยู่
-    const fit = catsOf(it).map(c => parentOf(c) ? `<li>${esc(catName(parentOf(c)))} › <b>${esc(catName(c))}</b></li>` : `<li><b>${esc(catName(c))}</b></li>`);
+    const fit = catsOf(it).map(c => parentOf(c) ? `<li>${esc(catName(parentOf(c)))} <b>${esc(catName(c))}</b></li>` : `<li><b>${esc(catName(c))}</b></li>`);
     $('#dFit').hidden = !fit.length;
     $('#dFit').innerHTML = fit.length ? `<h4>สำหรับรุ่น</h4><ul>${fit.join('')}</ul>` : '';
     $('#dModel').textContent = it.model ? 'รุ่นรถ: ' + it.model : '';
