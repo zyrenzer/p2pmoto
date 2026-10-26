@@ -310,6 +310,14 @@
   #dCopy{background:transparent;border:1px solid var(--blue);color:var(--blue)}
   .dmodel{font:500 15px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim);margin:0 0 4px}
   .dmodel:empty{display:none}
+  .dtop{display:flex;gap:16px;align-items:flex-start}
+  .dinfo{flex:1;min-width:0}
+  .dfit{flex:0 1 42%;min-width:0;margin-top:16px}
+  .dfit h4{margin:0 0 8px;font:700 16px 'FC Vision Rounded',system-ui,sans-serif;color:var(--text)}
+  .dfit ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .dfit li{max-width:100%;padding:4px 10px;border-radius:8px;background:var(--hair);color:var(--dim);font:600 13px 'FC Vision Rounded',system-ui,sans-serif;overflow-wrap:anywhere}
+  .dfit li b{color:var(--text);font-weight:700}
+  @media (max-width:480px){.dtop{flex-direction:column;gap:0}.dfit{flex-basis:auto;width:100%;margin:12px 0 4px}}
   .dprice{font:700 28px 'FC Vision Rounded',system-ui,sans-serif;color:var(--up);letter-spacing:-.02em}
   .contact{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
   .contact a{flex:1;min-width:140px;text-align:center;text-decoration:none;padding:13px;border-radius:14px;font:600 15px 'FC Vision Rounded',system-ui,sans-serif}
@@ -419,7 +427,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.1</span></div>
   </div>
 </div>
 
@@ -432,10 +440,15 @@
     </div>
     <div class="viewer" id="viewer"></div>
     <div class="strip" id="strip"></div>
-    <div class="dname" id="dName"></div>
-    <div class="dmodel" id="dModel"></div>
-    <div class="hint" id="dSku" style="margin:0 0 6px"></div>
-    <div class="dprice" id="dPrice"></div>
+    <div class="dtop">
+      <div class="dinfo">
+        <div class="dname" id="dName"></div>
+        <div class="dmodel" id="dModel"></div>
+        <div class="hint" id="dSku" style="margin:0 0 6px"></div>
+        <div class="dprice" id="dPrice"></div>
+      </div>
+      <div class="dfit" id="dFit" hidden></div>
+    </div>
     <div class="dopts" id="dOpts" hidden></div>
     <button class="btn primary" id="dCart" style="width:100%;margin-top:16px">🛒 ใส่ตะกร้า</button>
     <div class="contact" id="dContact"></div>
@@ -1299,6 +1312,10 @@ object-assign
   const openDetail = it => {
     cur = it; ci = 0; drawViewer();
     $('#dName').textContent = it.name;
+    // สำหรับรุ่น: หมวดหลัก › หมวดย่อย ของทุกหมวดที่สินค้าอยู่
+    const fit = catsOf(it).map(c => parentOf(c) ? `<li>${esc(catName(parentOf(c)))} › <b>${esc(catName(c))}</b></li>` : `<li><b>${esc(catName(c))}</b></li>`);
+    $('#dFit').hidden = !fit.length;
+    $('#dFit').innerHTML = fit.length ? `<h4>สำหรับรุ่น</h4><ul>${fit.join('')}</ul>` : '';
     $('#dModel').textContent = it.model ? 'รุ่นรถ: ' + it.model : '';
     $('#dSku').textContent = [it.used ? 'สภาพ: มือสอง' : '', it.sku ? 'P/N: ' + it.sku : ''].filter(Boolean).join(' · ');
     $('#dPrice').innerHTML = it.soon ? priceHTML(it) + '<div class="hint" style="font-size:13px">⏳ รอสินค้าเข้า เร็วๆ นี้ · สอบถามได้</div>' : it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
