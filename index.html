@@ -427,7 +427,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.3</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.4</span></div>
   </div>
 </div>
 
@@ -854,7 +854,9 @@ object-assign
   const inC = (it, id) => catsOf(it).includes(id);
   const inTree = (it, id) => catsOf(it).some(c => c === id || parentOf(c) === id);
   const inCat = it => condOk(it) && inCatOnly(it);
-  const inCatOnly = it => curCat === '' || (curCat === 'none' ? !catsOf(it).length : inTree(it, curCat));
+  // สินค้าในหมวดหลัก (ทั่วไป) แสดงในทุกหมวดย่อยของหมวดนั้นด้วย
+  const inSub = (it, sub) => inC(it, sub) || (!!parentOf(sub) && inC(it, parentOf(sub)));
+  const inCatOnly = it => curCat === '' || (curCat === 'none' ? !catsOf(it).length : parentOf(curCat) ? inSub(it, curCat) : inTree(it, curCat));
   const catLabel = id => parentOf(id) ? catName(parentOf(id)) + ' › ' + catName(id) : catName(id);
   const cardHTML = (it, grip = false) => `
         <div class="card${it.sold && !it.soon ? ' is-sold' : ''}" data-id="${it.id}" tabindex="0">
@@ -889,7 +891,7 @@ object-assign
     const subs = id => {
       if (id !== om) return '';
       const k = kids(id);
-      const list = k.map(c => row(c.id, c.name, n(i => inC(i, c.id)), ' sub', id)).join('');
+      const list = k.map(c => row(c.id, c.name, n(i => inSub(i, c.id)), ' sub', id)).join('');
       const add = seller ? `<div class="catadd sub"><input class="in" id="newSub" maxlength="60" placeholder="หมวดย่อยใน ${esc(catName(id))}"><button id="addSub" title="เพิ่มหมวดย่อย" aria-label="เพิ่มหมวดย่อย">+</button></div>` : '';
       return list || add ? `<div class="subwrap">${list}${add}</div>` : '';
     };
@@ -939,9 +941,7 @@ object-assign
             <div class="subhead"><span>${esc(name)}</span><span class="n">${arr.length} ชิ้น</span></div>
             ${arr.length ? `<div class="grid" data-sec="${id}">${arr.map(it => cardHTML(it, grip)).join('')}</div>` : '<div class="empty" style="padding:18px">ยังไม่มีอะไหล่ในหมวดย่อยนี้</div>'}
           </section>`;
-        const direct = list.filter(it => inC(it, curCat));
-        g.innerHTML = (direct.length ? sec(curCat, catName(curCat) + ' (ทั่วไป)', direct) : '') +
-          k.map(c => [c, list.filter(it => inC(it, c.id))]).filter(([, arr]) => arr.length || seller).map(([c, arr]) => sec(c.id, c.name, arr)).join('');
+        g.innerHTML = k.map(c => [c, list.filter(it => inSub(it, c.id))]).filter(([, arr]) => arr.length || seller).map(([c, arr]) => sec(c.id, c.name, arr)).join('');
       } else g.innerHTML = list.map(it => cardHTML(it, grip)).join('');
     }
     $('#count').textContent = list.length + ' ชิ้น';
