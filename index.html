@@ -199,6 +199,7 @@
   select.in{appearance:auto}
   .baht{font-size:.6em;font-weight:600;margin-left:.25em;letter-spacing:0}
   .pricebox .in{padding-left:16px}
+  .overlay{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .cartbtn{position:relative}
   .badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--down);color:#fff;font:700 11px 'FC Vision Rounded',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
   .addcart{width:100%;margin-top:10px;padding:9px;border-radius:12px;border:1px solid var(--blue);background:transparent;color:var(--blue);font:600 13px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;transition:background .2s,color .2s}
@@ -361,7 +362,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.2</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.3</span></div>
   </div>
 </div>
 
@@ -1011,6 +1012,19 @@ object-assign
   // ── overlays ──
   const show = id => $('#' + id).classList.add('open');
   const hide = id => $('#' + id).classList.remove('open');
+  // เปิดหน้าต่างอยู่ = ล็อกหน้าด้านหลังไม่ให้เลื่อน (วิธีนี้ใช้ได้กับ iPhone Safari ด้วย)
+  let lockY = null;
+  const syncLock = () => {
+    const open = !!document.querySelector('.overlay.open'), b = document.body.style;
+    if (open && lockY === null) {
+      lockY = window.scrollY;
+      Object.assign(b, { position: 'fixed', top: -lockY + 'px', left: '0', right: '0', width: '100%', overflow: 'hidden' });
+    } else if (!open && lockY !== null) {
+      Object.assign(b, { position: '', top: '', left: '', right: '', width: '', overflow: '' });
+      window.scrollTo(0, lockY); lockY = null;
+    }
+  };
+  new MutationObserver(syncLock).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
   document.querySelectorAll('.overlay').forEach(o => {
     o.addEventListener('click', e => { if (e.target === o || e.target.closest('[data-close]')) hide(o.id); });
   });
