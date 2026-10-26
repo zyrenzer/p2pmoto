@@ -200,6 +200,13 @@
   .baht{font-size:.6em;font-weight:600;margin-left:.25em;letter-spacing:0}
   .pricebox .in{padding-left:16px}
   .overlay{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .pcrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0}
+  .pcrow > div{min-width:0}
+  .costbox .in{color:var(--faint)}
+  .card .price .cost,.costtag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:7px;background:var(--hair);color:var(--faint);font:600 11.5px 'FC Vision Rounded',system-ui,sans-serif;letter-spacing:0;vertical-align:middle;white-space:nowrap}
+  .costline{margin-top:6px;padding:8px 12px;border-radius:10px;background:var(--hair);color:var(--dim);font:600 13.5px 'FC Vision Rounded',system-ui,sans-serif;letter-spacing:0}
+  .costline div + div{margin-top:3px}
+  .costline b{color:var(--fg, inherit)}
   .cartbtn{position:relative}
   .badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--down);color:#fff;font:700 11px 'FC Vision Rounded',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
   .addcart{width:100%;margin-top:10px;padding:9px;border-radius:12px;border:1px solid var(--blue);background:transparent;color:var(--blue);font:600 13px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;transition:background .2s,color .2s}
@@ -374,7 +381,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v18.4</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v19</span></div>
   </div>
 </div>
 
@@ -427,11 +434,20 @@
         <input class="sr" id="file" type="file" accept="image/*" multiple>
         <div class="hint">ลากรูปมาวาง หรือกดเพื่อเลือก · รูปแรกคือรูปปก · ลากสลับลำดับได้</div>
       </div>
-      <div id="priceWrap">
-        <div class="label"><span>ราคา</span></div>
-        <div class="pricebox">
-                    <input class="in" id="fPrice" type="text" inputmode="numeric" placeholder="0">
-          <span class="unit">บาท</span>
+      <div class="pcrow" id="priceWrap">
+        <div>
+          <div class="label"><span>ราคาขาย</span></div>
+          <div class="pricebox">
+            <input class="in" id="fPrice" type="text" inputmode="numeric" placeholder="0">
+            <span class="unit">บาท</span>
+          </div>
+        </div>
+        <div>
+          <div class="label"><span>ราคาทุน 🔒</span></div>
+          <div class="pricebox costbox">
+            <input class="in" id="fCost" type="text" inputmode="numeric" placeholder="0">
+            <span class="unit">บาท</span>
+          </div>
         </div>
       </div>
       <div id="stockWrap">
@@ -450,6 +466,7 @@
         <select class="in" id="fCat"></select>
       </div>
       <label class="check"><input type="checkbox" id="fNew"> 🆕 แสดงในแถว "อะไหล่เข้าใหม่"</label>
+      <label class="check"><input type="checkbox" id="fComing"> ⏳ รอสินค้าเข้า (รูปขึ้นว่า "เร็วๆ นี้" · ลูกค้ายังสั่งไม่ได้)</label>
       <div class="msg" id="msg"></div>
       <div class="actions">
         <button class="btn danger" id="delBtn" hidden>ลบ</button>
@@ -588,13 +605,14 @@ object-assign
     let db = null; const blobs = new Map();
     const open = () => new Promise(res => {
       try {
-        const r = indexedDB.open('p2p_parts_web', 3);
+        const r = indexedDB.open('p2p_parts_web', 4);
         r.onupgradeneeded = () => {
           const d = r.result;
           if (!d.objectStoreNames.contains('parts')) d.createObjectStore('parts', { keyPath: 'id' });
           if (!d.objectStoreNames.contains('files')) d.createObjectStore('files');
           if (!d.objectStoreNames.contains('orders')) d.createObjectStore('orders', { keyPath: 'id' });
           if (!d.objectStoreNames.contains('cats')) d.createObjectStore('cats', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('costs')) d.createObjectStore('costs');
         };
         r.onsuccess = () => res(r.result); r.onerror = () => res(null);
       } catch { res(null); }
@@ -625,6 +643,8 @@ object-assign
       async listCats() { return ((await tx('cats', 'readonly', s => s.getAll())) || []).sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.created_at.localeCompare(b.created_at)); },
       async saveCat(c) { await tx('cats', 'readwrite', s => s.put(c)); },
       async saveCats(list) { for (const c of list) await tx('cats', 'readwrite', s => s.put(c)); },
+      async listCosts() { return (await tx('costs', 'readonly', s => s.getAll())) || []; },
+      async saveCost(c) { await tx('costs', 'readwrite', s => s.put(c, c.part_id)); },
       async setSorts(list) { for (const { id, sort } of list) { const p = await tx('parts', 'readonly', s => s.get(id)); if (p) await tx('parts', 'readwrite', s => s.put({ ...p, sort })); } },
       async removeCat(id) {
         await tx('cats', 'readwrite', s => s.delete(id));
@@ -699,6 +719,9 @@ object-assign
     async saveCat(c) { const { error } = await sb.from('categories').upsert(c); if (error) throw error; },
     async saveCats(list) { const { error } = await sb.from('categories').upsert(list); if (error) throw error; },
     async removeCat(id) { const { error } = await sb.from('categories').delete().eq('id', id); if (error) throw error; },
+    // ต้นทุนอยู่ตาราง part_costs แยกจาก parts · RLS ให้อ่าน/เขียนได้เฉพาะอีเมลแอดมิน (ลูกค้าโหลดไม่ได้)
+    async listCosts() { const { data, error } = await sb.from('part_costs').select('*'); if (error) throw error; return data || []; },
+    async saveCost(c) { const { error } = await sb.from('part_costs').upsert(c); if (error) throw error; },
     async setSorts(list) {
       const rs = await Promise.all(list.map(({ id, sort }) => sb.from('parts').update({ sort }).eq('id', id)));
       const bad = rs.find(r => r.error); if (bad) throw bad.error;
@@ -715,6 +738,9 @@ object-assign
 
   // ── state ──
   let items = [], cats = [], curCat = '', seller = false;
+  // ต้นทุน: โหลดเฉพาะตอนแอดมินล็อกอิน · ไม่เคยใส่ใน parts หรือ options
+  let costs = new Map();
+  const loadCosts = async () => { costs = new Map(); if (!seller) return; try { costs = new Map((await B.listCosts()).map(c => [c.part_id, c])); } catch {} };
   const urls = new Map();
   const url = p => urls.get(p) || '';
   // เบราว์เซอร์เลือกรูปย่อที่ใกล้ขนาดจอที่สุด (ย่อเพิ่มน้อยที่สุด ตัวหนังสือไม่แตก) ถ้าไม่มีรูปย่อใช้รูปเต็ม
@@ -729,6 +755,7 @@ object-assign
 
   const setSeller = v => {
     seller = v;
+    if (!v) costs = new Map();
     $('#addBtn').hidden = !v;
     $('#ordersBtn').hidden = !v;
     // ลูกค้าไม่เห็นปุ่มนี้ · แอดมินเข้าทางลิงก์ลับ .../#admin
@@ -764,19 +791,19 @@ object-assign
   const inCat = it => curCat === '' || (curCat === 'none' ? !catName(it.category_id) : it.category_id === curCat || parentOf(it.category_id) === curCat);
   const catLabel = id => parentOf(id) ? catName(parentOf(id)) + ' › ' + catName(id) : catName(id);
   const cardHTML = (it, grip = false) => `
-        <div class="card${it.sold ? ' is-sold' : ''}" data-id="${it.id}" tabindex="0">
+        <div class="card${it.sold && !it.soon ? ' is-sold' : ''}" data-id="${it.id}" tabindex="0">
           <div class="thumb">
             ${grip ? '<span class="pgrip" data-pgrip title="ลากเพื่อสลับตำแหน่ง" aria-hidden="true">⠿</span>' : ''}
             ${it.photos.length ? tImg(it.photos[0], 'loading="lazy"') : '<div class="none">NO PHOTO</div>'}
             ${it.is_new ? '<span class="newbadge">NEW</span>' : ''}
             ${seller ? `<button class="newtog${it.is_new ? ' on' : ''}" data-new="${it.id}" title="${it.is_new ? 'เอาออกจากอะไหล่เข้าใหม่' : 'เพิ่มเป็นอะไหล่เข้าใหม่'}">${it.is_new ? '× เข้าใหม่' : '+ เข้าใหม่'}</button>` : ''}
-            ${it.sold ? '<div class="sold"><span>สินค้าหมด</span></div>' : ''}
+            ${it.sold ? `<div class="sold"><span>${it.soon ? 'เร็วๆ นี้' : 'สินค้าหมด'}</span></div>` : ''}
           </div>
           <div class="body">
             <div class="name" title="${esc(it.name)}">${esc(it.name)}</div>
             <div class="model" title="${esc(it.model)}">${it.model ? '🏍 ' + esc(it.model) : '&nbsp;'}</div>
-            <div class="price">${priceHTML(it)}</div>
-            <div class="hint" style="margin-top:2px">${it.options.length ? it.options.length + ' ตัวเลือก · ' : ''}${it.sold ? 'สินค้าหมด' : 'เหลือ ' + it.stock + ' ชิ้น'}</div>
+            <div class="price">${priceHTML(it)}${costHTML(it)}</div>
+            <div class="hint" style="margin-top:2px">${it.options.length ? it.options.length + ' ตัวเลือก · ' : ''}${it.soon ? 'รอสินค้าเข้า เร็วๆ นี้' : it.sold ? 'สินค้าหมด' : 'เหลือ ' + it.stock + ' ชิ้น'}</div>
             ${cartBtnHTML(it)}
           </div>
         </div>`;
@@ -863,13 +890,32 @@ object-assign
       const ps = (i.options.some(o => o.stock > 0) ? i.options.filter(o => o.stock > 0) : i.options).map(o => o.price);
       i.price = Math.min(...ps); i.priceMax = Math.max(...ps);
     } else i.priceMax = i.price;
-    i.sold = i.stock <= 0;
+    // coming = รอสินค้าเข้า: แสดงราคาปกติ แต่ยังสั่งซื้อไม่ได้ (ป้าย "เร็วๆ นี้")
+    i.soon = !!i.coming;
+    i.sold = i.stock <= 0 || i.soon;
+  };
+  const costOf = it => {
+    const c = costs.get(it.id); if (!c) return null;
+    const v = it.options.length ? it.options.map(o => Number((c.opt_costs || {})[o.id]) || 0).filter(n => n > 0) : [Number(c.cost) || 0].filter(n => n > 0);
+    return v.length ? { min: Math.min(...v), max: Math.max(...v) } : null;
+  };
+  const costHTML = it => {
+    if (!seller) return '';
+    const k = costOf(it);
+    return `<span class="cost" title="ต้นทุน (เห็นเฉพาะแอดมิน)">${k ? fmtNum(k.min) + (k.max > k.min ? '–' + fmtNum(k.max) : '') : '—'}</span>`;
+  };
+  const costLineHTML = it => {
+    if (!seller) return '';
+    const c = costs.get(it.id) || {}, row = (label, price, cost) => `<div>🔒 ${label}ทุน <b>${cost ? fmtNum(cost) : '—'}</b> · ขาย <b>${fmtNum(price)}</b>${cost ? ` · กำไร <b>${(price - cost).toLocaleString('en-US')}</b> บาท` : ' บาท'}</div>`;
+    return '<div class="costline" title="เห็นเฉพาะแอดมิน">' + (it.options.length
+      ? it.options.map(o => row(esc(o.name) + ': ', o.price, Number((c.opt_costs || {})[o.id]) || 0)).join('')
+      : row('', it.price, Number(c.cost) || 0)) + '</div>';
   };
   const priceHTML = it => (it.priceMax > it.price ? '<span class="from">เริ่ม</span>' : '') + fmtTHB(it.price);
   const reload = async () => {
     try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(normItem); }
     catch (e) { $('#grid').innerHTML = `<div class="empty"><b>โหลดข้อมูลไม่ได้</b>${esc(e.message || e)}</div>`; return; }
-    await resolveUrls(items); render(); backfillThumbs();
+    await loadCosts(); await resolveUrls(items); render(); backfillThumbs();
   };
   $('#q').oninput = render;
   const pick = e => {
@@ -1165,11 +1211,12 @@ object-assign
     $('#dName').textContent = it.name;
     $('#dModel').textContent = it.model ? 'รุ่นรถ: ' + it.model : '';
     $('#dSku').textContent = it.sku ? 'P/N: ' + it.sku : '';
-    $('#dPrice').innerHTML = it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
+    $('#dPrice').innerHTML = it.soon ? priceHTML(it) + '<div class="hint" style="font-size:13px">⏳ รอสินค้าเข้า เร็วๆ นี้ · สอบถามได้</div>' : it.sold ? `<span style="color:var(--faint);text-decoration:line-through">${fmtTHB(it.price)}</span> <span style="font-size:16px;color:var(--down)">สินค้าหมด</span>` : priceHTML(it);
     $('#dOpts').hidden = !it.options.length;
     $('#dOpts').innerHTML = it.options.map(o => `<button data-dopt="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>${o.photo ? tImg(o.photo, '', '30px') : '<span class="noimg"></span>'}${esc(o.name)}${o.stock > 0 ? '' : ' (หมด)'}</button>`).join('');
-    $('#dContact').innerHTML = it.sold ? '' : contactHTML(it.name);
+    $('#dContact').innerHTML = it.sold && !it.soon ? '' : contactHTML(it.name);
     if (!it.sold) $('#dPrice').insertAdjacentHTML('beforeend', `<div class="hint" style="font-size:13px">เหลือ ${it.stock} ชิ้น</div>`);
+    $('#dPrice').insertAdjacentHTML('beforeend', costLineHTML(it));
     drawDetailCart();
     $('#dSeller').hidden = !seller;
     show('detail');
@@ -1199,7 +1246,7 @@ object-assign
     $('#cartBadge').textContent = n; $('#cartBadge').hidden = !n;
   };
   const cartBtnHTML = it => it.sold
-    ? '<button class="addcart" disabled>สินค้าหมด</button>'
+    ? `<button class="addcart" disabled>${it.soon ? 'เร็วๆ นี้' : 'สินค้าหมด'}</button>`
     : it.options.length ? (cart.some(c => c.id === it.id)
       ? `<button class="addcart in" data-opts="${it.id}">✓ ในตะกร้า · เพิ่ม</button>`
       : `<button class="addcart" data-opts="${it.id}">🛒 เลือกตัวเลือก</button>`)
@@ -1212,7 +1259,7 @@ object-assign
     const o = it && c.opt ? it.options.find(x => x.id === c.opt) : null;
     const bad = !it || (c.opt ? !o : it.options.length > 0);
     const stock = bad ? 0 : o ? o.stock : it.stock;
-    return { ...c, key: ckey(c.id, c.opt), it, o, bad, stock, sold: !bad && stock <= 0,
+    return { ...c, key: ckey(c.id, c.opt), it, o, bad, stock, sold: !bad && (stock <= 0 || !!(it && it.soon)),
       name: it ? it.name + (o ? ` (${o.name})` : '') : 'สินค้านี้ถูกลบแล้ว',
       price: o ? o.price : it ? it.price : 0,
       photo: (o && o.photo) || (it && it.photos[0]) || '' };
@@ -1286,7 +1333,7 @@ object-assign
           <div class="info">
             <div class="nm">${esc(l.it ? l.it.name : l.name)}</div>
             ${l.o ? `<div class="op">ตัวเลือก: ${esc(l.o.name)}</div>` : ''}
-            ${!l.it ? '<div class="warn">ไม่มีสินค้านี้แล้ว</div>' : l.bad ? '<div class="warn">ตัวเลือกนี้ไม่มีแล้ว · กรุณาลบแล้วเลือกใหม่</div>' : l.sold ? '<div class="warn">สินค้าหมด · จะไม่ถูกสั่งซื้อ</div>' : `<div class="pr">${fmtTHB(l.price)}</div>`}
+            ${!l.it ? '<div class="warn">ไม่มีสินค้านี้แล้ว</div>' : l.bad ? '<div class="warn">ตัวเลือกนี้ไม่มีแล้ว · กรุณาลบแล้วเลือกใหม่</div>' : l.sold ? `<div class="warn">${l.it && l.it.soon ? 'สินค้ายังไม่เข้า' : 'สินค้าหมด'} · จะไม่ถูกสั่งซื้อ</div>` : `<div class="pr">${fmtTHB(l.price)}</div>`}
             ${l.key === maxKey ? `<div class="warn">มีของแค่ ${l.stock} ชิ้น</div>` : ''}
           </div>
           ${!l.bad && !l.sold ? `<div class="qty"><button data-q="-1" data-key="${esc(l.key)}" aria-label="ลด">−</button><span>${Math.min(l.qty, l.stock)}</span><button data-q="1" data-key="${esc(l.key)}" aria-label="เพิ่ม">+</button></div>` : ''}
@@ -1303,7 +1350,7 @@ object-assign
     body.innerHTML = `<div class="fields">
       <div><div class="label"><span>ชื่อผู้รับ</span></div><input class="in" id="oName" autocomplete="name"></div>
       <div><div class="label"><span>เบอร์โทร</span></div><input class="in" id="oPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="08x-xxx-xxxx"></div>
-      <div><div class="label"><span>ที่อยู่จัดส่ง</span></div><textarea class="in" id="oAddr" autocomplete="street-address" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์"></textarea></div>
+      <div><div class="label"><span>ที่อยู่จัดส่ง</span><span class="n">ไม่บังคับ</span></div><textarea class="in" id="oAddr" autocomplete="street-address" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์"></textarea></div>
       <div><div class="label"><span>หมายเหตุ (ถ้ามี)</span></div><input class="in" id="oNote" placeholder="เช่น รุ่นรถ ปีรถ หรือเวลาที่สะดวก"></div>
       <div class="sr" aria-hidden="true"><input id="oWeb" tabindex="-1" autocomplete="off"></div>
       ${sumHTML(buyable().reduce((s, l) => s + l.qty, 0))}
@@ -1337,7 +1384,6 @@ object-assign
     const m = $('#oMsg');
     if (!name) { m.textContent = 'กรุณาใส่ชื่อผู้รับ'; return; }
     if (!/^0\d{8,9}$/.test(phone.replace(/\D/g, ''))) { m.textContent = 'กรุณาใส่เบอร์โทรให้ถูกต้อง เช่น 0812345678'; return; }
-    if (address.length < 10) { m.textContent = 'กรุณาใส่ที่อยู่จัดส่งให้ครบ'; return; }
     // กันบอท: ช่องซ่อนถูกกรอก หรือกรอกฟอร์มเร็วผิดปกติ → ทำเหมือนสำเร็จแต่ไม่ส่ง
     if ($('#oWeb').value || Date.now() - formOpenedAt < 3000) { lastOrder = { no: uid().slice(0, 8).toUpperCase(), total: cartTotal() + SHIP, phone }; cstep = 'done'; drawCart(); return; }
     await reload(); // เช็คราคา/สถานะล่าสุดก่อนส่ง
@@ -1378,7 +1424,7 @@ object-assign
         <select data-status="${o.id}" class="st-${o.status}">${Object.entries(ST).map(([k, v]) => `<option value="${k}" ${k === o.status ? 'selected' : ''}>${v}</option>`).join('')}</select>
       </div>
       <div class="who"><b style="color:var(--text)">${esc(o.customer_name)}</b> · <a href="tel:${esc(String(o.phone).replace(/[^\d+]/g, ''))}" style="color:var(--blue)">${esc(o.phone)}</a>
-${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</div>
+${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู่)'}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</div>
       <ul>${(o.items || []).map(i => `<li>${i.opt ? esc(i.name).replace(/ \(([^()]*)\)$/, '<br><small style="color:var(--blue)">ตัวเลือก: $1</small><br>') : esc(i.name)} × ${i.qty} · ${fmtTHB(i.price * i.qty)}</li>`).join('')}</ul>
       ${o.shipping ? `<div class="when" style="margin-top:6px">ค่าจัดส่ง ${fmtTHB(o.shipping)}</div>` : ''}
       <div class="sum">${fmtTHB(o.total)}</div>
@@ -1394,12 +1440,12 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   // ── admin login ──
   $('#sellerBtn').onclick = async () => {
     if (seller) { await B.signOut(); setSeller(false); render(); return; }
-    if (!live) { await B.signIn(); setSeller(true); render(); return; }
+    if (!live) { await B.signIn(); setSeller(true); await loadCosts(); render(); return; }
     $('#lMsg').textContent = ''; show('login'); setTimeout(() => $('#lEmail').focus(), 50);
   };
   $('#lBtn').onclick = async () => {
     const b = $('#lBtn'); b.disabled = true; $('#lMsg').textContent = '';
-    try { await B.signIn($('#lEmail').value.trim(), $('#lPass').value); setSeller(true); hide('login'); render(); }
+    try { await B.signIn($('#lEmail').value.trim(), $('#lPass').value); setSeller(true); hide('login'); await loadCosts(); render(); }
     catch (e) { $('#lMsg').textContent = 'เข้าสู่ระบบไม่สำเร็จ: ' + (e.message || e); }
     b.disabled = false;
   };
@@ -1420,13 +1466,16 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     $('#fSku').value = it ? it.sku : '';
     $('#fModel').value = it ? it.model : '';
     $('#fPrice').value = it && it.price ? Number(it.price).toLocaleString('en-US') : '';
+    const cc = (it && costs.get(it.id)) || {};
+    $('#fCost').value = fmtNum(cc.cost);
     $('#fStock').value = it ? it.stock : 1;
     $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + mains().map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(k.name)}</option>`).join('')).join('');
     $('#fCat').value = it ? (catName(it.category_id) ? it.category_id : '') : (curCat && curCat !== 'none' ? curCat : '');
     $('#fNew').checked = it ? !!it.is_new : true;
+    $('#fComing').checked = it ? !!it.coming : false;
     $('#delBtn').hidden = !editing;
     $('#msg').textContent = '';
-    opts = it ? it.options.map(o => ({ ...o, id: copy ? uid().slice(0, 8) : o.id, photo: o.photo ? { path: o.photo } : null })) : [];
+    opts = it ? it.options.map(o => ({ ...o, cost: Number((cc.opt_costs || {})[o.id]) || 0, id: copy ? uid().slice(0, 8) : o.id, photo: o.photo ? { path: o.photo } : null })) : [];
     renderPhotos(); renderOpts(); show('editor');
     setTimeout(() => $('#fName').focus(), 50);
   };
@@ -1554,7 +1603,8 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
         <div class="optf">
           <label class="wide"><small>ชื่อตัวเลือก</small><input class="in" data-oi="${i}" data-of="name" maxlength="60" placeholder="เช่น สีแดง / ขนาด L / รุ่นปี 2020" value="${esc(o.name)}"></label>
           <label class="wide"><small>P/N ตัวเลือก (ถ้ามี)</small><input class="in" data-oi="${i}" data-of="sku" maxlength="60" placeholder="เช่น 73740321B" value="${esc(o.sku || '')}"></label>
-          <label><small>ราคา (บาท)</small><input class="in" data-oi="${i}" data-of="price" inputmode="numeric" placeholder="0" value="${fmtNum(o.price)}"></label>
+          <label><small>ราคาขาย (บาท)</small><input class="in" data-oi="${i}" data-of="price" inputmode="numeric" placeholder="0" value="${fmtNum(o.price)}"></label>
+          <label><small>🔒 ต้นทุน (บาท)</small><input class="in" data-oi="${i}" data-of="cost" inputmode="numeric" placeholder="0" value="${fmtNum(o.cost)}"></label>
           <label><small>จำนวน</small><input class="in" data-oi="${i}" data-of="stock" type="number" min="0" max="9999" inputmode="numeric" value="${o.stock}"></label>
         </div>
         <button type="button" class="x" data-odel="${i}" title="ลบตัวเลือก" aria-label="ลบตัวเลือก">✕</button>
@@ -1562,14 +1612,15 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   };
   $('#addOpt').onclick = () => {
     const price = Number($('#fPrice').value.replace(/[^\d]/g, '')) || '';
-    opts.push({ id: uid().slice(0, 8), name: '', price: opts.length ? opts[opts.length - 1].price : price, stock: 1, photo: null });
+    const cost = Number($('#fCost').value.replace(/[^\d]/g, '')) || 0;
+    opts.push({ id: uid().slice(0, 8), name: '', price: opts.length ? opts[opts.length - 1].price : price, cost: opts.length ? opts[opts.length - 1].cost : cost, stock: 1, photo: null });
     renderOpts();
     const f = $('#optArea').querySelectorAll('[data-of="name"]'); if (f.length) f[f.length - 1].focus();
   };
   $('#optArea').addEventListener('input', e => {
     const f = e.target.closest('[data-oi]'); if (!f) return;
     const o = opts[+f.dataset.oi], k = f.dataset.of;
-    if (k === 'price') { f.value = fmtNum(f.value); o.price = Number(f.value.replace(/[^\d]/g, '')) || 0; }
+    if (k === 'price' || k === 'cost') { f.value = fmtNum(f.value); o[k] = Number(f.value.replace(/[^\d]/g, '')) || 0; }
     else if (k === 'stock') o.stock = Math.max(0, Math.min(9999, parseInt(f.value, 10) || 0));
     else o[k] = f.value;
   });
@@ -1588,10 +1639,10 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
   document.querySelectorAll('[data-stock]').forEach(b => b.onclick = () => {
     const f = $('#fStock'); f.value = Math.max(0, Math.min(9999, (parseInt(f.value, 10) || 0) + +b.dataset.stock));
   });
-  $('#fPrice').addEventListener('input', e => {
+  ['#fPrice', '#fCost'].forEach(sel => $(sel).addEventListener('input', e => {
     const n = e.target.value.replace(/[^\d]/g, '').slice(0, 10);
     e.target.value = n ? Number(n).toLocaleString('en-US') : '';
-  });
+  }));
 
   $('#saveBtn').onclick = async () => {
     const name = $('#fName').value.trim();
@@ -1627,12 +1678,23 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
       }
       btn.innerHTML = '<span class="spin"></span>กำลังบันทึก';
       const part = { id: editing ? editing.id : uid(), name, model: $('#fModel').value.trim(), sku: $('#fSku').value.trim(), price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
+      // ส่งช่อง coming เฉพาะเมื่อติ๊ก/เคยติ๊ก (ใช้ได้แม้ยังไม่ได้เพิ่มคอลัมน์)
+      if ($('#fComing').checked || (editing && editing.coming)) part.coming = $('#fComing').checked;
       if (!editing) part.created_at = new Date().toISOString();
       // ส่งช่อง options เฉพาะเมื่อมี/เคยมีตัวเลือก (เว็บยังใช้ได้แม้ยังไม่ได้รัน upgrade-options.sql)
       if (!options.length && !(editing && editing.options.length)) delete part.options;
       await B.save(part);
+      let costErr = '';
+      if (seller) {
+        const cost = Number($('#fCost').value.replace(/[^\d]/g, '')) || null;
+        const row = { part_id: part.id, cost: options.length ? null : cost, opt_costs: Object.fromEntries(opts.filter(o => o.cost > 0).map(o => [o.id, o.cost])) };
+        if (row.cost || Object.keys(row.opt_costs).length || costs.has(part.id)) {
+          try { await B.saveCost(row); } catch (e) { costErr = e.message || String(e); }
+        }
+      }
       if (editing) { const keep = allPhotos(part); await B.removeFiles(unshared(allPhotos(editing).filter(p => !keep.includes(p)), editing.id)); }
       hide('editor'); await reload();
+      if (costErr) { const d = items.find(i => i.id === part.id); if (d) openEditor(d); $('#msg').textContent = 'บันทึกสินค้าแล้ว แต่บันทึกราคาต้นทุนไม่สำเร็จ: ' + costErr; }
     } catch (e) {
       await B.removeFiles(uploaded).catch(() => {});
       m.textContent = 'บันทึกไม่สำเร็จ: ' + (e.message || e);
@@ -1674,7 +1736,9 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     for (const [name, model, sku, price, cat, bg, isNew] of P) {
       const b = await pic(name.split(' ').slice(0, 2).join(' '), model, bg);
       const path = await B.upload(b); urls.set(path, URL.createObjectURL(b));
-      await B.save({ id: uid(), name, model, sku, price, stock: 2, photos: [path], options: [], category_id: cat.id, is_new: !!isNew, sort: 0, created_at: at(i++) });
+      const id = uid();
+      await B.save({ id, name, model, sku, price, stock: 2, photos: [path], options: [], category_id: cat.id, is_new: !!isNew, sort: 0, created_at: at(i++) });
+      if (i % 3) await B.saveCost({ part_id: id, cost: Math.round(price * 0.62 / 10) * 10, opt_costs: {} });
     }
   };
 
@@ -1685,7 +1749,7 @@ ${esc(o.address)}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</
     await B.init();
     const timeout = new Promise(r => setTimeout(() => r(false), 5000));
     setSeller(await Promise.race([B.session().catch(() => false), timeout]));
-    if (live) sb.auth.onAuthStateChange((_e, s) => { setSeller(!!s); render(); backfillThumbs(); });
+    if (live) sb.auth.onAuthStateChange((_e, s) => { setSeller(!!s); render(); loadCosts().then(render); backfillThumbs(); });
     if (!live && C.DEMO_SEED) await seedDemo();
     await reload();
   })();
