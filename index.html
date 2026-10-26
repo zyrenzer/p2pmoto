@@ -257,6 +257,10 @@
   .catlabel{align-items:center;justify-content:flex-start;gap:12px}
   .condsw button{letter-spacing:0}
   .condsw.sm{padding:3px}
+  .catmore{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .catmore .in{flex:1;min-width:0}
+  .catmore .x{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--hair);color:var(--dim);cursor:pointer;font:600 14px system-ui}
+  .addcatbtn{margin-top:8px;border-style:dashed;color:var(--blue)}
   .condsw.sm button{padding:5px 12px;font-size:12.5px}
   .mcond{display:none}
   @media (max-width:820px){
@@ -415,7 +419,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v22</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23</span></div>
   </div>
 </div>
 
@@ -498,6 +502,8 @@
       <div>
         <div class="label catlabel"><span>หมวดหมู่</span><div class="condsw sm" id="fCondSw" role="group" aria-label="สภาพสินค้า"></div></div>
         <select class="in" id="fCat"></select>
+        <div id="fCatsMore"></div>
+        <button type="button" class="ghost addcatbtn" id="addCatRow">+ เพิ่มหมวดหมู่</button>
       </div>
       <label class="check"><input type="checkbox" id="fNew"> 🆕 แสดงในแถว "อะไหล่เข้าใหม่"</label>
       <label class="check"><input type="checkbox" id="fComing"> ⏳ รอสินค้าเข้า (รูปขึ้นว่า "เร็วๆ นี้" · ลูกค้ายังสั่งไม่ได้)</label>
@@ -831,8 +837,11 @@ object-assign
   const mains = () => mainsOf(cond === 'used');
   const kids = id => cats.filter(c => parentOf(c.id) === id);
   const openMain = () => curCat && curCat !== 'none' ? (parentOf(curCat) || curCat) : null;
+  const catsOf = it => [...new Set([it.category_id, ...(it.extra_cats || [])])].filter(id => id && catOf(id));
+  const inC = (it, id) => catsOf(it).includes(id);
+  const inTree = (it, id) => catsOf(it).some(c => c === id || parentOf(c) === id);
   const inCat = it => condOk(it) && inCatOnly(it);
-  const inCatOnly = it => curCat === '' || (curCat === 'none' ? !catName(it.category_id) : it.category_id === curCat || parentOf(it.category_id) === curCat);
+  const inCatOnly = it => curCat === '' || (curCat === 'none' ? !catsOf(it).length : inTree(it, curCat));
   const catLabel = id => parentOf(id) ? catName(parentOf(id)) + ' › ' + catName(id) : catName(id);
   const cardHTML = (it, grip = false) => `
         <div class="card${it.sold && !it.soon ? ' is-sold' : ''}" data-id="${it.id}" tabindex="0">
@@ -856,7 +865,7 @@ object-assign
   const renderSide = () => {
     if (curCat && curCat !== 'none' && !catName(curCat)) curCat = '';
     const n = f => items.filter(i => condOk(i) && f(i)).length;
-    const none = n(i => !catName(i.category_id));
+    const none = n(i => !catsOf(i).length);
     const real = id => seller && id && id !== 'none';
     const row = (id, name, count, cls = '', parent = '') => `<div class="catrow${cls}"${real(id) ? ` data-cid="${id}" data-parent="${parent}"` : ''}>
         ${real(id) ? `<span class="grip" data-grip="${id}" title="ลากเพื่อสลับลำดับ" aria-hidden="true">⠿</span>` : ''}
@@ -867,11 +876,11 @@ object-assign
     const subs = id => {
       if (id !== om) return '';
       const k = kids(id);
-      const list = k.map(c => row(c.id, c.name, n(i => i.category_id === c.id), ' sub', id)).join('');
+      const list = k.map(c => row(c.id, c.name, n(i => inC(i, c.id)), ' sub', id)).join('');
       const add = seller ? `<div class="catadd sub"><input class="in" id="newSub" maxlength="60" placeholder="หมวดย่อยใน ${esc(catName(id))}"><button id="addSub" title="เพิ่มหมวดย่อย" aria-label="เพิ่มหมวดย่อย">+</button></div>` : '';
       return list || add ? `<div class="subwrap">${list}${add}</div>` : '';
     };
-    const mainRows = mains().map(c => row(c.id, c.name, n(i => i.category_id === c.id || parentOf(i.category_id) === c.id), (kids(c.id).length ? ' has-kids' : '') + (c.id === om ? ' open' : '')) + (mob.matches ? '' : subs(c.id))).join('');
+    const mainRows = mains().map(c => row(c.id, c.name, n(i => inTree(i, c.id)), (kids(c.id).length ? ' has-kids' : '') + (c.id === om ? ' open' : '')) + (mob.matches ? '' : subs(c.id))).join('');
     const top = row('', 'ทั้งหมด', n(() => true)) + mainRows +
       (cats.length && none ? row('none', 'อื่น ๆ', none) : '') +
       (seller ? '<div class="catadd"><input class="in" id="newCat" maxlength="60" placeholder="ชื่อหมวดหลักใหม่"><button id="addCat" title="เพิ่มหมวด" aria-label="เพิ่มหมวด">+</button></div>' : '');
@@ -917,9 +926,9 @@ object-assign
             <div class="subhead"><span>${esc(name)}</span><span class="n">${arr.length} ชิ้น</span></div>
             ${arr.length ? `<div class="grid" data-sec="${id}">${arr.map(it => cardHTML(it, grip)).join('')}</div>` : '<div class="empty" style="padding:18px">ยังไม่มีอะไหล่ในหมวดย่อยนี้</div>'}
           </section>`;
-        const direct = list.filter(it => it.category_id === curCat);
+        const direct = list.filter(it => inC(it, curCat));
         g.innerHTML = (direct.length ? sec(curCat, catName(curCat) + ' (ทั่วไป)', direct) : '') +
-          k.map(c => [c, list.filter(it => it.category_id === c.id)]).filter(([, arr]) => arr.length || seller).map(([c, arr]) => sec(c.id, c.name, arr)).join('');
+          k.map(c => [c, list.filter(it => inC(it, c.id))]).filter(([, arr]) => arr.length || seller).map(([c, arr]) => sec(c.id, c.name, arr)).join('');
       } else g.innerHTML = list.map(it => cardHTML(it, grip)).join('');
     }
     $('#count').textContent = list.length + ' ชิ้น';
@@ -946,7 +955,7 @@ object-assign
       i.price = Math.min(...ps); i.priceMax = Math.max(...ps);
     } else i.priceMax = i.price;
     // coming = รอสินค้าเข้า: แสดงราคาปกติ แต่ยังสั่งซื้อไม่ได้ (ป้าย "เร็วๆ นี้")
-    i.soon = !!i.coming; i.used = !!i.used;
+    i.soon = !!i.coming; i.used = !!i.used; i.extra_cats = Array.isArray(i.extra_cats) ? i.extra_cats : [];
     i.sold = i.stock <= 0 || i.soon;
   };
   const costOf = it => {
@@ -1107,11 +1116,11 @@ object-assign
       <label class="pickrow">
         <input type="checkbox" data-pick="${i.id}" ${picked.has(i.id) ? 'checked' : ''}>
         ${i.photos.length ? tImg(i.photos[0], '', '44px') : '<div class="noimg"></div>'}
-        <div class="info"><div class="nm">${esc(i.name)}</div>${i.model ? `<div class="mdl">🏍 ${esc(i.model)}</div>` : ''}<div class="sub">${catName(i.category_id) ? 'หมวด: ' + esc(catName(i.category_id)) : 'ยังไม่มีหมวด'}</div></div>
+        <div class="info"><div class="nm">${esc(i.name)}</div>${i.model ? `<div class="mdl">🏍 ${esc(i.model)}</div>` : ''}<div class="sub">${catsOf(i).length ? 'หมวด: ' + catsOf(i).map(c => esc(catName(c))).join(', ') : 'ยังไม่มีหมวด'}</div></div>
       </label>`).join('') || '<div class="empty" style="padding:24px">ไม่พบอะไหล่</div>';
   };
   $('#pickBtn').onclick = () => {
-    picked = new Set(items.filter(i => i.category_id === curCat).map(i => i.id));
+    picked = new Set(items.filter(i => inC(i, curCat)).map(i => i.id));
     $('#pTitle').textContent = 'เลือกอะไหล่เข้าหมวด "' + catName(curCat) + '"';
     $('#pq').value = ''; $('#pMsg').textContent = '';
     drawPick(); show('picker');
@@ -1122,10 +1131,16 @@ object-assign
     c.checked ? picked.add(c.dataset.pick) : picked.delete(c.dataset.pick);
   });
   $('#pSave').onclick = async () => {
-    const add = [...picked].filter(id => (items.find(i => i.id === id) || {}).category_id !== curCat);
-    const drop = items.filter(i => i.category_id === curCat && !picked.has(i.id)).map(i => i.id);
+    const add = items.filter(i => picked.has(i.id) && !inC(i, curCat));
+    const drop = items.filter(i => inC(i, curCat) && !picked.has(i.id));
     const b = $('#pSave'); b.disabled = true;
-    try { await B.patchParts(add, { category_id: curCat }); await B.patchParts(drop, { category_id: null }); hide('picker'); await reload(); }
+    // เพิ่ม: ยังไม่มีหมวด → เป็นหมวดหลัก · มีแล้ว → เพิ่มเป็นหมวดเสริม / เอาออก: ลบเฉพาะหมวดนี้ หมวดอื่นยังอยู่
+    const patchOf = (it, list) => { const p = { category_id: list[0] || null }; if (list.length > 1 || it.extra_cats.length) p.extra_cats = list.slice(1); return p; };
+    try {
+      for (const it of add) await B.patchParts([it.id], patchOf(it, [...catsOf(it), curCat]));
+      for (const it of drop) await B.patchParts([it.id], patchOf(it, catsOf(it).filter(c => c !== curCat)));
+      hide('picker'); await reload();
+    }
     catch (e) { $('#pMsg').textContent = 'บันทึกไม่สำเร็จ: ' + (e.message || e); }
     b.disabled = false;
   };
@@ -1545,7 +1560,7 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
     $('#fCost').value = fmtNum(cc.cost);
     $('#fStock').value = it ? it.stock : 1;
     edUsed = it ? !!it.used : cond === 'used';
-    fillCats(it ? (catName(it.category_id) ? it.category_id : '') : (curCat && curCat !== 'none' ? curCat : ''));
+    fillCats(it ? catsOf(it) : (curCat && curCat !== 'none' ? [curCat] : []));
     $('#fNew').checked = it ? !!it.is_new : true;
     $('#fComing').checked = it ? !!it.coming : false;
     $('#delBtn').hidden = !editing;
@@ -1557,18 +1572,29 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
   $('#addBtn').onclick = () => openEditor(null);
   // สวิตช์ของใหม่ / มือสอง ในหน้าแก้ไข: เปลี่ยนชุดหมวดหมู่ในช่องเลือก
   let edUsed = false;
-  const fillCats = sel => {
-    const top = (catOf(sel) && (parentOf(sel) ? catOf(parentOf(sel)) : catOf(sel))) || null;
-    if (top && !!top.used !== edUsed) sel = '';
-    $('#fCat').innerHTML = '<option value="">— ไม่มีหมวด —</option>' + mainsOf(edUsed).map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(k.name)}</option>`).join('')).join('');
-    $('#fCat').value = sel || '';
+  const inSet = id => { const c = catOf(id); const top = c && (parentOf(id) ? catOf(parentOf(id)) : c); return !!top && !!top.used === edUsed; };
+  const catOpts = () => '<option value="">— ไม่มีหมวด —</option>' + mainsOf(edUsed).map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(k.name)}</option>`).join('')).join('');
+  const catRow = id => `<div class="catmore"><select class="in" data-xcat>${catOpts()}</select><button type="button" class="x" data-xdel title="เอาหมวดนี้ออก" aria-label="เอาหมวดนี้ออก">✕</button></div>`;
+  const pickedCats = () => [...new Set([$('#fCat').value, ...[...document.querySelectorAll('[data-xcat]')].map(s => s.value)].filter(Boolean))];
+  // list = หมวดทั้งหมดของสินค้า (ตัวแรก = หมวดหลัก)
+  const fillCats = list => {
+    list = (list || []).filter(inSet);
+    $('#fCat').innerHTML = catOpts();
+    $('#fCat').value = list[0] || '';
+    $('#fCatsMore').innerHTML = list.slice(1).map(catRow).join('');
+    document.querySelectorAll('[data-xcat]').forEach((s, i) => { s.value = list[i + 1]; });
     $('#fCondSw').innerHTML = `<button type="button" data-cond="new" class="${edUsed ? '' : 'on'}">ของใหม่</button><button type="button" data-cond="used" class="${edUsed ? 'on' : ''}">มือสอง</button>`;
   };
+  $('#addCatRow').onclick = () => {
+    $('#fCatsMore').insertAdjacentHTML('beforeend', catRow(''));
+    const all = document.querySelectorAll('[data-xcat]'); all[all.length - 1].focus();
+  };
+  $('#fCatsMore').addEventListener('click', e => { const x = e.target.closest('[data-xdel]'); if (x) x.closest('.catmore').remove(); });
   $('#fCondSw').addEventListener('click', e => {
     const b = e.target.closest('[data-cond]'); if (!b) return;
     e.stopPropagation();
     const u = b.dataset.cond === 'used'; if (u === edUsed) return;
-    edUsed = u; fillCats($('#fCat').value);
+    edUsed = u; fillCats(pickedCats());
   });
 
   const renderPhotos = () => {
@@ -1767,7 +1793,9 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
         options.push({ id: o.id, name: o.name.trim(), sku: (o.sku || '').trim(), price: o.price, stock: o.stock, photo });
       }
       btn.innerHTML = '<span class="spin"></span>กำลังบันทึก';
-      const part = { id: editing ? editing.id : uid(), name, model: $('#fModel').value.trim(), sku: $('#fSku').value.trim(), price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: $('#fCat').value || null, is_new: $('#fNew').checked };
+      const part = { id: editing ? editing.id : uid(), name, model: $('#fModel').value.trim(), sku: $('#fSku').value.trim(), price: options.length ? Math.min(...options.map(o => o.price)) : price, stock, photos: paths, options, category_id: pickedCats()[0] || null, is_new: $('#fNew').checked };
+      // หมวดเสริม: ส่งเฉพาะเมื่อมี/เคยมี (ใช้ได้แม้ยังไม่ได้เพิ่มคอลัมน์)
+      if (pickedCats().length > 1 || (editing && editing.extra_cats.length)) part.extra_cats = pickedCats().slice(1);
       // ส่งช่อง coming เฉพาะเมื่อติ๊ก/เคยติ๊ก (ใช้ได้แม้ยังไม่ได้เพิ่มคอลัมน์)
       if ($('#fComing').checked || (editing && editing.coming)) part.coming = $('#fComing').checked;
       if (edUsed || (editing && editing.used)) part.used = edUsed;
