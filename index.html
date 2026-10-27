@@ -287,6 +287,8 @@
   .viewer img{width:100%;height:100%;object-fit:contain;display:block}
   .nav{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;border:none;background:rgba(0,0,0,0.45);color:#fff;font:600 20px system-ui;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .nav.prev{left:10px}.nav.next{right:10px}
+  .nav{padding:0;line-height:0}.nav svg{display:block}
+  .lb .nav svg{width:26px;height:26px}
   .viewer img{cursor:zoom-in}
   .lb{position:fixed;inset:0;z-index:200;background:#000;display:none;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;overscroll-behavior:contain}
   .lb.open{display:block}
@@ -427,7 +429,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.4</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v23.5</span></div>
   </div>
 </div>
 
@@ -1187,7 +1189,7 @@ object-assign
   const drawViewer = () => {
     const ph = cur.photos;
     $('#viewer').innerHTML = ph.length
-      ? `<img src="${url(ph[ci])}" alt="${esc(cur.name)}">` + (ph.length > 1 ? `<button class="nav prev" aria-label="ก่อนหน้า">‹</button><button class="nav next" aria-label="ถัดไป">›</button><div class="idx">${ci + 1}/${ph.length}</div>` : '')
+      ? `<img src="${url(ph[ci])}" alt="${esc(cur.name)}">` + (ph.length > 1 ? `<button class="nav prev" aria-label="ก่อนหน้า"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="nav next" aria-label="ถัดไป"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="idx">${ci + 1}/${ph.length}</div>` : '')
       : '<div class="thumb" style="height:100%"><div class="none">NO PHOTO</div></div>';
     $('#strip').innerHTML = ph.length > 1 ? ph.map((p, i) => `<button data-i="${i}" class="${i === ci ? 'cur' : ''}">${tImg(p, '', '60px')}</button>`).join('') : '';
   };
@@ -1197,7 +1199,7 @@ object-assign
   // ── ดูรูปเต็มจอ: ซูมสองนิ้ว / แตะสองครั้ง / ลูกกลิ้งเมาส์ · ปัดซ้ายขวาเปลี่ยนรูป ──
   const lb = document.createElement('div');
   lb.className = 'lb';
-  lb.innerHTML = '<div class="lbtrack"></div><div class="lbidx"></div><button class="lbx" aria-label="ปิด">✕</button><button class="nav prev" aria-label="ก่อนหน้า">‹</button><button class="nav next" aria-label="ถัดไป">›</button>';
+  lb.innerHTML = '<div class="lbtrack"></div><div class="lbidx"></div><button class="lbx" aria-label="ปิด">✕</button><button class="nav prev" aria-label="ก่อนหน้า"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="nav next" aria-label="ถัดไป"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
   document.body.appendChild(lb);
   const track = lb.querySelector('.lbtrack'), pts = new Map();
   // รูปซ้ำหัวท้าย (สุดท้าย | 1..n | แรก) เพื่อปัดวนได้ไม่สะดุด
