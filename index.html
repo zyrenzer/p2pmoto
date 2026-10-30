@@ -259,6 +259,14 @@
   .order .when{font:500 12px 'FC Vision Rounded',system-ui,sans-serif;color:var(--faint)}
   .order .who{margin-top:8px;font:500 14px 'FC Vision Rounded',system-ui,sans-serif;color:var(--dim);line-height:1.55;white-space:pre-wrap}
   .order ul{margin:8px 0 0;padding-left:18px;font:500 14px 'FC Vision Rounded',system-ui,sans-serif}
+  .order ul.oitems{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
+  .oitems li{display:flex;gap:10px;align-items:flex-start}
+  .oitems li>img,.oitems li>.noimg{flex:none;width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--img-bg);border:1px solid var(--border)}
+  .oitems .oi{min-width:0;flex:1;line-height:1.35}
+  .oitems .nm{font-weight:700;color:var(--text)}
+  .oitems .op{color:var(--blue);font-size:13px}
+  .oitems .mt{color:var(--dim);font-size:13px}
+  .oitems .q{font-size:13px;margin-top:2px}
   .order .sum{margin-top:8px;font:700 16px 'FC Vision Rounded',system-ui,sans-serif;color:var(--up)}
   .order select{background:var(--panel-strong);border:1px solid var(--border);border-radius:10px;padding:6px 10px;color:var(--text);font:600 13px 'FC Vision Rounded',system-ui,sans-serif}
   .st-new{color:var(--blue)}.st-confirmed{color:#FF9F0A}.st-shipped{color:var(--up)}.st-cancelled{color:var(--faint)}
@@ -449,7 +457,7 @@
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v24.5</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v24.6</span></div>
   </div>
 </div>
 
@@ -1582,6 +1590,18 @@ object-assign
 
   // ── orders (แอดมิน) ──
   const ST = { new: 'ใหม่', confirmed: 'ยืนยันแล้ว', shipped: 'จัดส่งแล้ว', cancelled: 'ยกเลิก' };
+  // รายการในออเดอร์: รูป (รูปตัวเลือกที่ลูกค้าเลือก ถ้ามี) + ชื่อ + รุ่นรถ + P/N จากข้อมูลสินค้าปัจจุบัน
+  const orderLine = i => {
+    const it = items.find(x => x.id === i.id), op = it && i.opt ? it.options.find(x => x.id === i.opt) : null;
+    const m = i.opt ? String(i.name).match(/^(.*) \(([^()]*)\)$/) : null;
+    const name = m ? m[1] : i.name, optName = m ? m[2] : (op ? op.name : '');
+    const photo = (op && op.photo) || (it && it.photos[0]) || '';
+    const sku = (op && op.sku) || (it && it.sku) || '';
+    const meta = [it && it.model ? '🏍 ' + esc(it.model) : '', sku ? 'P/N: ' + esc(sku) : ''].filter(Boolean).join(' · ');
+    return `<li>${photo ? tImg(photo, 'loading="lazy"', '56px') : '<div class="noimg"></div>'}<div class="oi">
+      <div class="nm">${esc(name)}</div>${optName ? `<div class="op">ตัวเลือก: ${esc(optName)}</div>` : ''}${meta ? `<div class="mt">${meta}</div>` : ''}
+      <div class="q">× ${i.qty} · ${fmtTHB(i.price * i.qty)}</div></div></li>`;
+  };
   const drawOrders = async () => {
     const body = $('#ordersBody');
     body.innerHTML = '<div class="empty" style="padding:30px"><span class="spin"></span>กำลังโหลด…</div>';
@@ -1596,7 +1616,7 @@ object-assign
       </div>
       <div class="who"><b style="color:var(--text)">${esc(o.customer_name)}</b> · <a href="tel:${esc(String(o.phone).replace(/[^\d+]/g, ''))}" style="color:var(--blue)">${esc(o.phone)}</a>
 ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู่)'}${o.note ? '\nหมายเหตุ: ' + esc(o.note) : ''}</div>
-      <ul>${(o.items || []).map(i => `<li>${i.opt ? esc(i.name).replace(/ \(([^()]*)\)$/, '<br><small style="color:var(--blue)">ตัวเลือก: $1</small><br>') : esc(i.name)} × ${i.qty} · ${fmtTHB(i.price * i.qty)}</li>`).join('')}</ul>
+      <ul class="oitems">${(o.items || []).map(orderLine).join('')}</ul>
       ${o.shipping ? `<div class="when" style="margin-top:6px">ค่าจัดส่ง ${fmtTHB(o.shipping)}</div>` : ''}
       <div class="sum">${fmtTHB(o.total)}</div>
     </div>`).join('');
