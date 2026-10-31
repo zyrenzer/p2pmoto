@@ -453,11 +453,11 @@
       <button class="ghost" id="pickBtn">☰ เลือกอะไหล่เข้าหมวดนี้</button>
     </div>
 
-    <div class="grid" id="grid"><div class="empty"><span class="spin"></span>กำลังโหลด…</div></div>
+    <div class="grid" id="grid"><div class="empty"><span class="spin"></span>กำลังโหลดอะไหล่…</div></div>
     </main>
     </div>
 
-    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v24.6</span></div>
+    <div class="footer"><span id="fcount">0 รายการ</span><span id="fcontact"></span><span>v24.7</span></div>
   </div>
 </div>
 
@@ -829,7 +829,7 @@ object-assign
   $('#demoBanner').hidden = live;
 
   // ── state ──
-  let items = [], cats = [], curCat = '', seller = false;
+  let items = [], cats = [], curCat = '', seller = false, loaded = false;
   // สภาพสินค้า: ของใหม่ / มือสอง (parts.used)
   let cond = 'new';
   try { if (sessionStorage.getItem('p2p_cond') === 'used') cond = 'used'; } catch {}
@@ -955,7 +955,7 @@ object-assign
   const renderNew = () => {
     // กรองตามหมวดที่เลือก · หมวดที่ไม่มีของเข้าใหม่ ซ่อนแถวนี้ไปเลย
     const list = items.filter(i => i.is_new && inCat(i));
-    $('#newSec').hidden = !list.length && !(seller && curCat === '');
+    $('#newSec').hidden = !loaded || (!list.length && !(seller && curCat === ''));
     $('#newCount').textContent = list.length ? list.length + ' ชิ้น' : '';
     $('#newRow').innerHTML = list.length ? list.map(it => cardHTML(it)).join('')
       : '<div class="empty">ยังไม่มีอะไหล่เข้าใหม่ · กด "+ เข้าใหม่" ที่การ์ด หรือติ๊กในหน้าแก้ไข</div>';
@@ -969,7 +969,10 @@ object-assign
     const grip = seller && curCat !== '' && !q;
     const k = curCat && curCat !== 'none' && !parentOf(curCat) ? kids(curCat) : [];
     g.classList.toggle('sectioned', !!(k.length && list.length && !q));
-    if (!items.length) {
+    // ยังโหลดสินค้าไม่เสร็จ: แสดงกำลังโหลด ไม่ใช่ "ยังไม่มีอะไหล่"
+    if (!loaded) {
+      g.innerHTML = '<div class="empty"><span class="spin"></span>กำลังโหลดอะไหล่…</div>';
+    } else if (!items.length) {
       g.innerHTML = `<div class="empty"><b>ยังไม่มีอะไหล่ที่ลงขาย</b>${seller ? 'กดปุ่ม + เพื่อเพิ่มรูปอะไหล่และตั้งราคา' : 'แวะมาดูใหม่เร็ว ๆ นี้'}</div>`;
     } else if (!list.length) {
       g.innerHTML = `<div class="empty">${q ? 'ไม่พบอะไหล่ที่ค้นหา' : seller && curCat && curCat !== 'none' ? 'หมวดนี้ยังไม่มีอะไหล่ · กด "เลือกอะไหล่เข้าหมวดนี้"' : cond === 'used' ? 'ยังไม่มีอะไหล่มือสองในหมวดนี้' : 'หมวดนี้ยังไม่มีอะไหล่'}</div>`;
@@ -1030,7 +1033,7 @@ object-assign
   const okUrl = u => typeof u === 'string' && /^https:\/\/[^\s]+$/i.test(u.trim());
   const priceHTML = it => (it.priceMax > it.price ? '<span class="from">เริ่ม</span>' : '') + fmtTHB(it.price);
   const reload = async () => {
-    try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(normItem); }
+    try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(normItem); loaded = true; }
     catch (e) { $('#grid').innerHTML = `<div class="empty"><b>โหลดข้อมูลไม่ได้</b>${esc(e.message || e)}</div>`; return; }
     await loadCosts(); await resolveUrls(items); render(); backfillThumbs();
     openShared();
