@@ -287,7 +287,8 @@
   .condsw{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--hair);border:1px solid var(--border)}
   .condsw button{flex:1;padding:7px 14px;border:none;border-radius:999px;background:transparent;color:var(--dim);font:700 13.5px 'FC Vision Rounded',system-ui,sans-serif;cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
   .condsw button.on{background:var(--ink);color:var(--on-ink)}
-  .side .condsw{margin:0 0 10px}
+  .cathead{font:700 12px 'FC Vision Rounded',system-ui,sans-serif;color:var(--faint);letter-spacing:.04em;padding:10px 12px 4px}
+  .side .condsw{margin:10px 0}
   .catlabel{align-items:center;justify-content:flex-start;gap:12px}
   .condsw button{letter-spacing:0}
   .condsw.sm{padding:3px}
@@ -438,9 +439,8 @@
   }
   @media (max-width:374px){
     .hdr .brand .sub{white-space:normal}
-    .mcondrow{display:flex;justify-content:flex-end;margin:0 0 12px}
-    .mcondrow .mcond{display:flex;margin:0}
   }
+  .side .mrow~.condsw{margin:10px 2px 2px}
   /* เมนูมือถือ (3 ขีด) */
   .drawer{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;transition:opacity .25s}
   .drawer.open{opacity:1;pointer-events:auto}
@@ -1039,9 +1039,9 @@ object-assign
   // สมาชิก: me = { id, email, name, phone, address } · favs = รายการโปรด (id สินค้า)
   let me = null, favs = new Set();
   // สภาพสินค้า: ของใหม่ / มือสอง (parts.used)
-  let cond = 'new';
-  try { if (sessionStorage.getItem('p2p_cond') === 'used') cond = 'used'; } catch {}
-  const condOk = i => (cond === 'used' ? i.used : !i.used);
+  // '' = ทั้งหมด (ของใหม่ + มือสอง) เป็นค่าเริ่มต้นทุกครั้งที่เปิดเว็บ
+  let cond = '';
+  const condOk = i => (cond === '' ? true : cond === 'used' ? i.used : !i.used);
   const condHTML = () => `<button data-cond="new" class="${cond === 'new' ? 'on' : ''}" aria-pressed="${cond === 'new'}">ของใหม่</button><button data-cond="used" class="${cond === 'used' ? 'on' : ''}" aria-pressed="${cond === 'used'}">มือสอง</button>`;
   // ต้นทุน: โหลดเฉพาะตอนแอดมินล็อกอิน · ไม่เคยใส่ใน parts หรือ options
   let costs = new Map();
@@ -1092,7 +1092,7 @@ object-assign
   const parentOf = id => { const c = catOf(id); return c && c.parent_id && catOf(c.parent_id) ? c.parent_id : null; };
   // หมวดของใหม่กับมือสองแยกกันคนละชุด (categories.used) · หมวดย่อยตามหมวดหลัก
   const mainsOf = u => cats.filter(c => !parentOf(c.id) && !!c.used === u);
-  const mains = () => mainsOf(cond === 'used');
+  const mains = () => cond === '' ? [...mainsOf(false), ...mainsOf(true)] : mainsOf(cond === 'used');
   const kids = id => cats.filter(c => parentOf(c.id) === id);
   const openMain = () => curCat && curCat !== 'none' ? (parentOf(curCat) || curCat) : null;
   const catsOf = it => [...new Set([it.category_id, ...(it.extra_cats || [])])].filter(id => id && catOf(id));
@@ -1140,22 +1140,26 @@ object-assign
       const add = seller ? `<div class="catadd sub"><input class="in" id="newSub" maxlength="60" placeholder="หมวดย่อยใน ${esc(catName(id))}"><button id="addSub" title="เพิ่มหมวดย่อย" aria-label="เพิ่มหมวดย่อย">+</button></div>` : '';
       return list || add ? `<div class="subwrap">${list}${add}</div>` : '';
     };
-    const mainRows = mains().map(c => row(c.id, c.name, n(i => inTree(i, c.id)), (kids(c.id).length ? ' has-kids' : '') + (c.id === om ? ' open' : '')) + (mob.matches ? '' : subs(c.id))).join('');
-    const top = row('', 'ทั้งหมด', n(() => true)) + mainRows +
+    const mainRow = c => row(c.id, c.name, n(i => inTree(i, c.id)), (kids(c.id).length ? ' has-kids' : '') + (c.id === om ? ' open' : '')) + (mob.matches ? '' : subs(c.id));
+    const usedHead = cond === '' && mainsOf(true).length && mainsOf(false).length ? (mob.matches ? '' : '<div class="cathead">มือสอง</div>') : '';
+    const mainRows = cond === '' ? mainsOf(false).map(mainRow).join('') + usedHead + mainsOf(true).map(mainRow).join('') : mains().map(mainRow).join('');
+    const allRow = `<div class="catrow"><button class="cat${cond === '' && curCat === '' ? ' on' : ''}" data-cat="" data-all="1"><span class="nm">ทั้งหมด</span><span class="n">${items.length}</span></button></div>`;
+    const condRow = `<div class="condsw" role="group" aria-label="สภาพสินค้า">${condHTML()}</div>`;
+    const top = (mob.matches ? allRow : '') + (cond !== '' ? row('', cond === 'used' ? 'มือสองทั้งหมด' : 'ของใหม่ทั้งหมด', n(() => true)) : '') + mainRows +
       (cats.length && none ? row('none', 'อื่น ๆ', none) : '') +
       (seller ? '<div class="catadd"><input class="in" id="newCat" maxlength="60" placeholder="ชื่อหมวดหลักใหม่"><button id="addCat" title="เพิ่มหมวด" aria-label="เพิ่มหมวด">+</button></div>' : '');
     if (mob.matches) {
       // มือถือ: หมวดหลักแถวบน · หมวดย่อยของหมวดที่เลือกแยกเป็นอีกแถวด้านล่าง
       const keep = [...$('#side').querySelectorAll('.mrow')].map(r => r.scrollLeft);
       const sub = om ? subs(om).replace('class="subwrap"', 'class="mrow subrow"') : '';
-      $('#side').innerHTML = `<div class="mrow">${top}</div>` + sub;
+      $('#side').innerHTML = `<div class="mrow">${top}</div>` + sub + condRow;
       $('#side').querySelectorAll('.mrow').forEach((r, i) => { if (keep[i]) r.scrollLeft = keep[i]; });
       const on = $('#side .mrow .cat.on') || $('#side .catrow.open .cat');
       if (on && !keep[0]) on.scrollIntoView({ block: 'nearest', inline: 'center' });
-    } else $('#side').innerHTML = `<div class="condsw" role="group" aria-label="สภาพสินค้า">${condHTML()}</div>` + top;
+    } else $('#side').innerHTML = allRow + condRow + top;
     document.querySelectorAll('.mcond').forEach(el => { el.innerHTML = condHTML(); });
     $('#side').hidden = !cats.length && !seller;
-    $('#catTitle').textContent = favView ? '♥ รายการโปรด' : curCat === '' ? 'อะไหล่ทั้งหมด' : curCat === 'none' ? 'อื่น ๆ' : catLabel(curCat);
+    $('#catTitle').textContent = favView ? '♥ รายการโปรด' : curCat === '' ? (cond === 'used' ? 'อะไหล่มือสองทั้งหมด' : cond === 'new' ? 'อะไหล่ใหม่ทั้งหมด' : 'อะไหล่ทั้งหมด') : curCat === 'none' ? 'อื่น ๆ' : catLabel(curCat);
     $('#catBar').hidden = !(seller && curCat && curCat !== 'none');
   };
   const renderNew = () => {
@@ -1259,10 +1263,9 @@ object-assign
   };
   $('#q').oninput = render;
   document.addEventListener('click', e => {
-    const b = e.target.closest('[data-cond]'); if (!b || b.dataset.cond === cond) return;
+    const b = e.target.closest('[data-cond]'); if (!b) return;
     if (b.closest('#fCondSw')) return;
-    cond = b.dataset.cond; curCat = ''; favView = false;
-    try { sessionStorage.setItem('p2p_cond', cond); } catch {}
+    cond = b.dataset.cond === cond ? '' : b.dataset.cond; curCat = ''; favView = false;
     render();
   });
   const pick = e => {
@@ -1307,7 +1310,7 @@ object-assign
   const addCat = async () => {
     const f = $('#newCat'); const name = f.value.trim();
     if (!name) { f.focus(); return; }
-    if (mains().some(c => c.name === name)) { alert('มีหมวดนี้แล้ว'); return; }
+    if (mainsOf(cond === 'used').some(c => c.name === name)) { alert('มีหมวดนี้แล้ว'); return; }
     const c = { id: uid(), name, sort: cats.reduce((m, x) => Math.max(m, x.sort || 0), 0) + 1, created_at: new Date().toISOString() };
     if (cond === 'used') c.used = true;
     try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
@@ -1333,7 +1336,7 @@ object-assign
     if (e.target.closest('#addCat')) { addCat(); return; }
     if (e.target.closest('#addSub')) { addSub(); return; }
     const c = e.target.closest('[data-cat]');
-    if (c) { curCat = c.dataset.cat; render(); }
+    if (c) { if (c.dataset.all) cond = ''; curCat = c.dataset.cat; render(); }
   });
   $('#side').addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.id === 'newCat') addCat(); if (e.target.id === 'newSub') addSub(); });
   // ลากที่ ⠿ เพื่อสลับลำดับหมวด (ใช้ได้ทั้งเมาส์และนิ้ว)
@@ -1889,8 +1892,8 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
   $('#drawer').addEventListener('click', e => { if (e.target.id === 'drawer' || e.target.closest('[data-dclose]')) drawer.close(); });
   const nav = what => {
     drawer.close();
-    if (what === 'home') { favView = false; curCat = ''; $('#q').value = ''; render(); toTop(); }
-    else if (what === 'all') { favView = false; curCat = ''; render(); toParts(); }
+    if (what === 'home') { favView = false; curCat = ''; cond = ''; $('#q').value = ''; render(); toTop(); }
+    else if (what === 'all') { favView = false; curCat = ''; cond = ''; render(); toParts(); }
     else if (what === 'favs') { favView = true; curCat = ''; render(); toParts(); }
     else if (what === 'promo') openInfo('โปรโมชั่น', (C.PROMO || '<p>ตอนนี้ยังไม่มีโปรโมชั่น</p><p>ติดตามโปรโมชั่นและของเข้าใหม่ได้ทาง LINE ของร้าน</p>') + `<div class="contact" style="flex-direction:column">${contactHTML()}</div>`);
     else if (what === 'about') openInfo('เกี่ยวกับเรา', ABOUT() + `<div class="contact" style="flex-direction:column">${contactHTML()}</div>`);
