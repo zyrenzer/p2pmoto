@@ -540,6 +540,7 @@
   <div class="wrap">
     <div class="admrow admbar" id="admBar" hidden>
       <button class="ghost" id="ordersBtn" hidden>📋 ออเดอร์</button>
+      <button class="ghost" id="shopSetBtn" hidden>⚙️ ตั้งค่าร้าน</button>
       <button class="ghost" id="sellerBtn" hidden>เข้าสู่ระบบ</button>
     </div>
     <div class="mcondrow"><div class="condsw mcond" role="group" aria-label="สภาพสินค้า"></div></div>
@@ -717,6 +718,18 @@
 </div>
 
 <!-- CONTACT (ลูกค้า) -->
+<div class="overlay" id="shopSet">
+  <div class="modal" role="dialog" aria-modal="true" style="width:min(460px,100%)">
+    <div class="mhead"><div class="t">⚙️ ตั้งค่าร้าน</div><button class="x" data-close aria-label="ปิด">✕</button></div>
+    <p class="hint" style="margin:0 0 12px">ลิงก์หน้าร้านจะแสดงเป็นปุ่มในหน้า "ติดต่อสอบถาม" · เว้นว่างไว้ถ้าไม่ต้องการแสดง</p>
+    <div class="fields">
+      <div><div class="label"><span>ลิงก์ร้าน Shopee</span></div><input class="in" id="sShopee" type="url" inputmode="url" placeholder="https://shopee.co.th/..."></div>
+      <div><div class="label"><span>ลิงก์ร้าน Lazada</span></div><input class="in" id="sLazada" type="url" inputmode="url" placeholder="https://www.lazada.co.th/shop/..."></div>
+      <div class="msg" id="sMsg"></div>
+      <div class="actions"><button class="btn primary" id="sSave" style="background:var(--ink);color:var(--on-ink)">บันทึก</button></div>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="contactBox">
   <div class="modal" role="dialog" aria-modal="true" style="width:min(420px,100%)">
     <div class="mhead">
@@ -725,6 +738,8 @@
     </div>
     <p class="hint" style="margin:0">สอบถามสินค้า เช็ครุ่นรถ หรือขอรูปเพิ่มเติม ทักร้านได้เลย</p>
     <div class="contact" id="contactLinks" style="flex-direction:column"></div>
+    <div class="contact shops" id="contactShops" hidden></div>
+    <div class="hint" id="contactShopHint" hidden style="margin-top:10px">ยังไม่ได้ใส่ลิงก์ร้าน Shopee / Lazada · ใส่ได้ที่ ⚙️ ตั้งค่าร้าน</div>
   </div>
 </div>
 
@@ -897,6 +912,8 @@ object-assign
       async listCats() { return ((await tx('cats', 'readonly', s => s.getAll())) || []).sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.created_at.localeCompare(b.created_at)); },
       async saveCat(c) { await tx('cats', 'readwrite', s => s.put(c)); },
       async saveCats(list) { for (const c of list) await tx('cats', 'readwrite', s => s.put(c)); },
+      async getSettings() { const d = { shopee_url: 'https://shopee.co.th/', lazada_url: 'https://www.lazada.co.th/' }; try { return JSON.parse(localStorage.getItem('p2p_demo_settings') || 'null') || d; } catch { return d; } },
+      async saveSettings(o) { const v = { ...(await this.getSettings()), ...o }; try { localStorage.setItem('p2p_demo_settings', JSON.stringify(v)); } catch {} },
       async listCosts() { return (await tx('costs', 'readonly', s => s.getAll())) || []; },
       async saveCost(c) { await tx('costs', 'readwrite', s => s.put(c, c.part_id)); },
       async setSorts(list) { for (const { id, sort } of list) { const p = await tx('parts', 'readonly', s => s.get(id)); if (p) await tx('parts', 'readwrite', s => s.put({ ...p, sort })); } },
@@ -987,6 +1004,8 @@ object-assign
     async listCats() { const { data, error } = await sb.from('categories').select('*').order('sort').order('created_at'); if (error) throw error; return data || []; },
     async saveCat(c) { const { error } = await sb.from('categories').upsert(c); if (error) throw error; },
     async saveCats(list) { const { error } = await sb.from('categories').upsert(list); if (error) throw error; },
+    async getSettings() { const { data, error } = await sb.from('shop_settings').select('key,value'); if (error) throw error; return Object.fromEntries((data || []).map(r => [r.key, r.value])); },
+    async saveSettings(o) { const { error } = await sb.from('shop_settings').upsert(Object.entries(o).map(([key, value]) => ({ key, value, updated_at: new Date().toISOString() }))); if (error) throw error; },
     async removeCat(id) { const { error } = await sb.from('categories').delete().eq('id', id); if (error) throw error; },
     // ต้นทุนอยู่ตาราง part_costs แยกจาก parts · RLS ให้อ่าน/เขียนได้เฉพาะอีเมลแอดมิน (ลูกค้าโหลดไม่ได้)
     async listCosts() { const { data, error } = await sb.from('part_costs').select('*'); if (error) throw error; return data || []; },
@@ -1062,7 +1081,7 @@ object-assign
     seller = v;
     if (!v) costs = new Map();
     $('#addBtn').hidden = !v;
-    $('#ordersBtn').hidden = !v;
+    $('#ordersBtn').hidden = !v; $('#shopSetBtn').hidden = !v;
     // ลูกค้าไม่เห็นปุ่มนี้ · แอดมินเข้าทางลิงก์ลับ .../#admin
     $('#sellerBtn').hidden = !(v || /admin/i.test(location.hash + location.search));
     $('#sellerBtn').textContent = v ? 'ออกจากระบบแอดมิน' : 'เข้าสู่ระบบแอดมิน';
@@ -1082,7 +1101,16 @@ object-assign
     if (C.CONTACT_PHONE) out.push(`<a class="tel" href="tel:${esc(C.CONTACT_PHONE.replace(/[^\d+]/g, ''))}">📞 ${esc(C.CONTACT_PHONE)}</a>`);
     return out.join('');
   };
-  const openContact = () => { $('#contactLinks').innerHTML = contactHTML() || '<div class="hint">ยังไม่ได้ใส่ช่องทางติดต่อ</div>'; $('#contactBox').classList.add('open'); };
+  let shopCfg = {};
+  const openContact = () => {
+    $('#contactLinks').innerHTML = contactHTML() || '<div class="hint">ยังไม่ได้ใส่ช่องทางติดต่อ</div>';
+    // ปุ่มหน้าร้าน Shopee / Lazada (แอดมินใส่ลิงก์ที่ ⚙️ ตั้งค่าร้าน)
+    const shops = [[shopCfg.shopee_url, 'shopee', 'ร้านเราบน Shopee'], [shopCfg.lazada_url, 'lazada', 'ร้านเราบน Lazada']]
+      .filter(([u]) => okUrl(u)).map(([u, c, t]) => `<a class="${c}" href="${esc(u)}" target="_blank" rel="noopener" aria-label="${t}" title="${t}">${t}</a>`);
+    $('#contactShops').innerHTML = shops.join(''); $('#contactShops').hidden = !shops.length;
+    $('#contactShopHint').hidden = !(seller && shops.length < 2);
+    $('#contactBox').classList.add('open');
+  };
   $('#fcontact').innerHTML = [C.CONTACT_LINE && 'LINE ' + esc(C.CONTACT_LINE), C.CONTACT_PHONE && 'โทร ' + esc(C.CONTACT_PHONE)].filter(Boolean).join(' · ');
 
   // ── grid ──
@@ -1245,7 +1273,7 @@ object-assign
   const okUrl = u => typeof u === 'string' && /^https:\/\/[^\s]+$/i.test(u.trim());
   const priceHTML = it => (it.priceMax > it.price ? '<span class="from">เริ่ม</span>' : '') + fmtTHB(it.price);
   const reload = async () => {
-    try { [items, cats] = await Promise.all([B.list(), B.listCats().catch(() => [])]); items.forEach(normItem); loaded = true; }
+    try { [items, cats, shopCfg] = await Promise.all([B.list(), B.listCats().catch(() => []), B.getSettings().catch(() => ({}))]); items.forEach(normItem); loaded = true; }
     catch (e) { $('#grid').innerHTML = `<div class="empty"><b>โหลดข้อมูลไม่ได้</b>${esc(e.message || e)}</div>`; return; }
     await loadCosts(); await resolveUrls(items); render(); backfillThumbs();
     openShared();
@@ -1857,6 +1885,14 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
     </div>`).join('');
   };
   $('#ordersBtn').onclick = () => { show('orders'); drawOrders(); };
+  $('#shopSetBtn').onclick = () => { $('#sShopee').value = shopCfg.shopee_url || ''; $('#sLazada').value = shopCfg.lazada_url || ''; $('#sMsg').textContent = ''; $('#sMsg').className = 'msg'; show('shopSet'); };
+  $('#sSave').onclick = async () => {
+    const m = $('#sMsg'), v = { shopee_url: $('#sShopee').value.trim(), lazada_url: $('#sLazada').value.trim() };
+    m.className = 'msg';
+    for (const [k, n] of [['shopee_url', 'Shopee'], ['lazada_url', 'Lazada']]) if (v[k] && !okUrl(v[k])) { m.textContent = `ลิงก์ ${n} ต้องขึ้นต้นด้วย https://`; return; }
+    try { await B.saveSettings(v); shopCfg = { ...shopCfg, ...v }; m.className = 'msg ok'; m.textContent = '✓ บันทึกแล้ว'; }
+    catch (e) { m.textContent = 'บันทึกไม่สำเร็จ: ' + (e.message || e); }
+  };
   $('#ordersBody').addEventListener('change', async e => {
     const s = e.target.closest('[data-status]'); if (!s) return;
     try { await B.setOrderStatus(s.dataset.status, s.value); s.className = 'st-' + s.value; reload(); }
