@@ -1264,7 +1264,8 @@ object-assign
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-cond]'); if (!b) return;
     if (b.closest('#fCondSw')) return;
-    cond = b.dataset.cond === cond ? '' : b.dataset.cond; curCat = ''; favView = false;
+    // ตัวกรองอย่างเดียว: อยู่หมวด/รุ่นเดิม · กดปุ่มเดิมซ้ำ = เอาตัวกรองออก
+    cond = b.dataset.cond === cond ? '' : b.dataset.cond;
     render();
   });
   const pick = e => {
