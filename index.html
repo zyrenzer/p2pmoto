@@ -1091,8 +1091,8 @@ object-assign
   const catOf = id => cats.find(c => c.id === id);
   const parentOf = id => { const c = catOf(id); return c && c.parent_id && catOf(c.parent_id) ? c.parent_id : null; };
   // หมวดของใหม่กับมือสองแยกกันคนละชุด (categories.used) · หมวดย่อยตามหมวดหลัก
-  const mainsOf = u => cats.filter(c => !parentOf(c.id) && !!c.used === u);
-  const mains = () => cond === '' ? [...mainsOf(false), ...mainsOf(true)] : mainsOf(cond === 'used');
+  // หมวดชุดเดียว ใช้ร่วมกันทั้งของใหม่และมือสอง (ของใหม่/มือสอง ดูจาก parts.used)
+  const mains = () => cats.filter(c => !parentOf(c.id));
   const kids = id => cats.filter(c => parentOf(c.id) === id);
   const openMain = () => curCat && curCat !== 'none' ? (parentOf(curCat) || curCat) : null;
   const catsOf = it => [...new Set([it.category_id, ...(it.extra_cats || [])])].filter(id => id && catOf(id));
@@ -1141,11 +1141,10 @@ object-assign
       return list || add ? `<div class="subwrap">${list}${add}</div>` : '';
     };
     const mainRow = c => row(c.id, c.name, n(i => inTree(i, c.id)), (kids(c.id).length ? ' has-kids' : '') + (c.id === om ? ' open' : '')) + (mob.matches ? '' : subs(c.id));
-    const usedHead = cond === '' && mainsOf(true).length && mainsOf(false).length ? (mob.matches ? '' : '<div class="cathead">มือสอง</div>') : '';
-    const mainRows = cond === '' ? mainsOf(false).map(mainRow).join('') + usedHead + mainsOf(true).map(mainRow).join('') : mains().map(mainRow).join('');
+    const mainRows = mains().map(mainRow).join('');
     const allRow = `<div class="catrow"><button class="cat${cond === '' && curCat === '' ? ' on' : ''}" data-cat="" data-all="1"><span class="nm">ทั้งหมด</span><span class="n">${items.length}</span></button></div>`;
     const condRow = `<div class="condsw" role="group" aria-label="สภาพสินค้า">${condHTML()}</div>`;
-    const top = (mob.matches ? allRow : '') + (cond !== '' ? row('', cond === 'used' ? 'มือสองทั้งหมด' : 'ของใหม่ทั้งหมด', n(() => true)) : '') + mainRows +
+    const top = (mob.matches ? allRow : '') + mainRows +
       (cats.length && none ? row('none', 'อื่น ๆ', none) : '') +
       (seller ? '<div class="catadd"><input class="in" id="newCat" maxlength="60" placeholder="ชื่อหมวดหลักใหม่"><button id="addCat" title="เพิ่มหมวด" aria-label="เพิ่มหมวด">+</button></div>' : '');
     if (mob.matches) {
@@ -1310,9 +1309,8 @@ object-assign
   const addCat = async () => {
     const f = $('#newCat'); const name = f.value.trim();
     if (!name) { f.focus(); return; }
-    if (mainsOf(cond === 'used').some(c => c.name === name)) { alert('มีหมวดนี้แล้ว'); return; }
+    if (mains().some(c => c.name === name)) { alert('มีหมวดนี้แล้ว'); return; }
     const c = { id: uid(), name, sort: cats.reduce((m, x) => Math.max(m, x.sort || 0), 0) + 1, created_at: new Date().toISOString() };
-    if (cond === 'used') c.used = true;
     try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
     catch (e) { alert('เพิ่มหมวดไม่สำเร็จ: ' + (e.message || e)); }
   };
@@ -2104,8 +2102,8 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
   $('#addBtn').onclick = () => openEditor(null);
   // สวิตช์ของใหม่ / มือสอง ในหน้าแก้ไข: เปลี่ยนชุดหมวดหมู่ในช่องเลือก
   let edUsed = false;
-  const inSet = id => { const c = catOf(id); const top = c && (parentOf(id) ? catOf(parentOf(id)) : c); return !!top && !!top.used === edUsed; };
-  const catOpts = () => '<option value="">— ไม่มีหมวด —</option>' + mainsOf(edUsed).map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(c.name)} ${esc(k.name)}</option>`).join('')).join('');
+  const inSet = id => !!catOf(id);
+  const catOpts = () => '<option value="">— ไม่มีหมวด —</option>' + mains().map(c => `<option value="${c.id}">${esc(c.name)}</option>` + kids(c.id).map(k => `<option value="${k.id}">　└ ${esc(c.name)} ${esc(k.name)}</option>`).join('')).join('');
   const catRow = id => `<div class="catmore"><select class="in" data-xcat>${catOpts()}</select><button type="button" class="x" data-xdel title="เอาหมวดนี้ออก" aria-label="เอาหมวดนี้ออก">✕</button></div>`;
   const pickedCats = () => [...new Set([$('#fCat').value, ...[...document.querySelectorAll('[data-xcat]')].map(s => s.value)].filter(Boolean))];
   // list = หมวดทั้งหมดของสินค้า (ตัวแรก = หมวดหลัก)
@@ -2126,7 +2124,7 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
     const b = e.target.closest('[data-cond]'); if (!b) return;
     e.stopPropagation();
     const u = b.dataset.cond === 'used'; if (u === edUsed) return;
-    edUsed = u; fillCats(pickedCats());
+    edUsed = u; $('#fCondSw').querySelectorAll('button').forEach(x => x.classList.toggle('on', (x.dataset.cond === 'used') === u));
   });
 
   const renderPhotos = () => {
@@ -2390,7 +2388,7 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
       const b = await pic(name.split(' ').slice(0, 2).join(' '), model, bg);
       const path = await B.upload(b); urls.set(path, URL.createObjectURL(b));
       const id = uid();
-      await B.save({ id, name, model, sku, price, stock: 2, photos: [path], options: [], category_id: cat.id, is_new: !!isNew, sort: 0, created_at: at(i++) });
+      await B.save({ id, name, model, sku, price, stock: 2, photos: [path], options: [], category_id: cat.id, is_new: !!isNew, used: i % 4 === 3, sort: 0, created_at: at(i++) });
       if (i % 3) await B.saveCost({ part_id: id, cost: Math.round(price * 0.62 / 10) * 10, opt_costs: {} });
     }
   };
