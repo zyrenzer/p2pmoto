@@ -1715,12 +1715,18 @@ object-assign
     pkSel = sel || (it.options.find(o => o.stock > 0) || {}).id || null;
     drawOptPick(); show('optPick');
   };
+  // ราคาทุนของตัวเลือก (เห็นเฉพาะแอดมิน)
+  const optCostHTML = o => {
+    if (!seller) return '';
+    const v = Number(((costs.get(pk.id) || {}).opt_costs || {})[o.id]) || 0;
+    return `<span class="costtag" title="ต้นทุน (เห็นเฉพาะแอดมิน)">ทุน ${v ? fmtNum(v) : '—'}</span>`;
+  };
   const drawOptPick = () => {
     $('#opTitle').textContent = pk.name;
     $('#opList').innerHTML = pk.options.map(o => `
       <button class="optcard${o.id === pkSel ? ' on' : ''}" data-op="${esc(o.id)}" ${o.stock > 0 ? '' : 'disabled'}>
         <div class="im">${o.photo ? tImg(o.photo, '', '150px') : 'ไม่มีรูป'}</div>
-        <div class="tx"><div class="nm" title="${esc(o.name)}">${esc(o.name)}</div><div class="pr">${fmtTHB(o.price)}</div>
+        <div class="tx"><div class="nm" title="${esc(o.name)}">${esc(o.name)}</div><div class="pr">${fmtTHB(o.price)}${optCostHTML(o)}</div>
         <div class="st">${o.stock > 0 ? 'เหลือ ' + o.stock + ' ชิ้น' : 'หมด'}${inCart(pk.id, o.id) ? ' · ✓ ในตะกร้า' : ''}</div>${o.sku ? `<div class="st">P/N: ${esc(o.sku)}</div>` : ''}</div>
         <span class="tick">✓</span>
       </button>`).join('');
@@ -1892,7 +1898,7 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
     m.className = 'msg';
     for (const [k, n] of [['shopee_url', 'Shopee'], ['lazada_url', 'Lazada']]) if (v[k] && !okUrl(v[k])) { m.textContent = `ลิงก์ ${n} ต้องขึ้นต้นด้วย https://`; return; }
     try { await B.saveSettings(v); shopCfg = { ...shopCfg, ...v }; m.className = 'msg ok'; m.textContent = '✓ บันทึกแล้ว'; }
-    catch (e) { m.textContent = 'บันทึกไม่สำเร็จ: ' + (e.message || e); }
+    catch (e) { const t = String(e.message || e); m.textContent = /shop_settings/.test(t) && /schema cache|does not exist/.test(t) ? 'บันทึกไม่สำเร็จ: ยังไม่ได้สร้างตารางตั้งค่าร้าน ให้รัน shop-settings.sql ใน Supabase → SQL Editor ก่อน' : 'บันทึกไม่สำเร็จ: ' + t; }
   };
   $('#ordersBody').addEventListener('change', async e => {
     const s = e.target.closest('[data-status]'); if (!s) return;
@@ -2426,8 +2432,10 @@ ${o.address ? esc(o.address) : '(ไม่ได้ใส่ที่อยู�
       const b = await pic(name.split(' ').slice(0, 2).join(' '), model, bg);
       const path = await B.upload(b); urls.set(path, URL.createObjectURL(b));
       const id = uid();
-      await B.save({ id, name, model, sku, price, stock: 2, photos: [path], options: [], category_id: cat.id, is_new: !!isNew, used: i % 4 === 3, sort: 0, created_at: at(i++) });
-      if (i % 3) await B.saveCost({ part_id: id, cost: Math.round(price * 0.62 / 10) * 10, opt_costs: {} });
+      const ops = name.startsWith('ยางรองโซ่') ? [['A ด้านบน+ด้านล่าง', 2842, 1700], ['A ด้านบน', 1620, 980], ['B ด้านล่าง', 1365, 820], ['C ด้านบน ชิ้นเล็ก', 914]].map(([n, pr, c], k) => ({ id: 'op' + k, name: n, price: pr, stock: k === 3 ? 1 : 5, photo: null, _c: c })) : [];
+      await B.save({ id, name, model, sku, price, stock: ops.length ? 16 : 2, photos: [path], options: ops.map(({ _c, ...o }) => o), category_id: cat.id, is_new: !!isNew, used: i % 4 === 3, sort: 0, created_at: at(i++) });
+      if (ops.length) await B.saveCost({ part_id: id, cost: null, opt_costs: Object.fromEntries(ops.filter(o => o._c).map(o => [o.id, o._c])) });
+      else if (i % 3) await B.saveCost({ part_id: id, cost: Math.round(price * 0.62 / 10) * 10, opt_costs: {} });
     }
   };
 
