@@ -155,6 +155,7 @@
   .cat:hover{background:var(--hair)}
   .cat.on{background:var(--ink);color:var(--on-ink)}
   .cat .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .catren{flex:1;min-width:0;padding:8px 10px;font:600 14px 'FC Vision Rounded',system-ui,sans-serif}
   .cat .n{font-size:12px;opacity:.6;flex:none}
   .cx{width:26px;height:26px;border-radius:50%;border:none;background:transparent;color:var(--down);font:700 16px system-ui;cursor:pointer;flex:none;padding:0}
   .cx:hover{background:var(--hair)}
@@ -1352,6 +1353,31 @@ object-assign
     try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
     catch (e) { alert('เพิ่มหมวดย่อยไม่สำเร็จ: ' + (e.message || e)); }
   };
+  let lastCatClick = { id: '', t: 0 };
+  const renameCat = id => {
+    const cat = cats.find(x => x.id === id);
+    const btn = $('#side').querySelector(`.cat[data-cat="${id}"]`);
+    if (!cat || !btn) return;
+    const inp = document.createElement('input');
+    inp.className = 'in catren'; inp.maxLength = 60; inp.value = cat.name;
+    btn.replaceWith(inp); inp.focus(); inp.select();
+    let done = false;
+    const finish = async save => {
+      if (done) return; done = true;
+      const name = inp.value.trim();
+      if (!save || !name || name === cat.name) { render(); return; }
+      const sib = cats.filter(x => x.id !== id && (x.parent_id || null) === (cat.parent_id || null));
+      if (sib.some(x => x.name === name)) { alert('มีหมวดชื่อนี้แล้ว'); render(); return; }
+      const old = cat.name; cat.name = name;
+      try { await B.saveCat(cat); }
+      catch (err) { cat.name = old; alert('เปลี่ยนชื่อหมวดไม่สำเร็จ: ' + (err.message || err)); }
+      render();
+    };
+    inp.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } if (ev.key === 'Escape') finish(false); });
+    inp.addEventListener('click', ev => ev.stopPropagation());
+    inp.addEventListener('pointerdown', ev => ev.stopPropagation());
+    inp.addEventListener('blur', () => finish(true));
+  };
   $('#side').addEventListener('click', async e => {
     const d = e.target.closest('[data-catdel]');
     if (d) {
@@ -1364,7 +1390,13 @@ object-assign
     if (e.target.closest('#addCat')) { addCat(); return; }
     if (e.target.closest('#addSub')) { addSub(); return; }
     const c = e.target.closest('[data-cat]');
-    if (c) { if (c.dataset.all) cond = ''; curCat = c.dataset.cat; render(); }
+    if (c) {
+      // แอดมิน: ดับเบิลคลิก (หรือแตะสองครั้ง) ที่ชื่อหมวด เพื่อแก้ชื่อ
+      const id = c.dataset.cat, now = Date.now();
+      if (seller && id && id !== 'none' && lastCatClick.id === id && now - lastCatClick.t < 450) { lastCatClick = { id: '', t: 0 }; renameCat(id); return; }
+      lastCatClick = { id, t: now };
+      if (c.dataset.all) cond = ''; curCat = id; render();
+    }
   });
   $('#side').addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.id === 'newCat') addCat(); if (e.target.id === 'newSub') addSub(); });
   // ลากที่ ⠿ เพื่อสลับลำดับหมวด (ใช้ได้ทั้งเมาส์และนิ้ว)
