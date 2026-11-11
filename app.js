@@ -217,6 +217,8 @@
 
   // ── state ──
   let items = [], cats = [], curCat = '', seller = false, loaded = false, favView = false;
+  // หมวดหลักที่กดซ้ำจนพับหมวดย่อยไว้ (ยังเลือกหมวดนั้นอยู่ รายการอะไหล่ไม่เปลี่ยน)
+  let closedCat = '';
   // สมาชิก: me = { id, email, name, phone, address } · favs = รายการโปรด (id สินค้า)
   let me = null, favs = new Set();
   // สภาพสินค้า: ของใหม่ / มือสอง (parts.used)
@@ -322,7 +324,8 @@
         <button class="cat${curCat === id ? ' on' : ''}" data-cat="${id}"><span class="nm">${esc(name)}</span><span class="n">${count}</span></button>
         ${real(id) ? `<button class="cx" data-catdel="${id}" title="ลบหมวด" aria-label="ลบหมวด ${esc(name)}">×</button>` : ''}
       </div>`;
-    const om = openMain();
+    const om0 = openMain();
+    const om = om0 && !(closedCat && curCat === closedCat) ? om0 : null;
     const subs = id => {
       if (id !== om) return '';
       const k = kids(id);
@@ -513,7 +516,7 @@
     try { await B.saveCat(c); cats.push(c); curCat = c.id; render(); }
     catch (e) { alert('เพิ่มหมวดย่อยไม่สำเร็จ: ' + (e.message || e)); }
   };
-  let lastCatClick = { id: '', t: 0 };
+  let lastCatClick = { id: '', t: 0, prev: null };
   const renameCat = id => {
     const cat = cats.find(x => x.id === id);
     const btn = $('#side').querySelector(`.cat[data-cat="${id}"]`);
@@ -553,9 +556,17 @@
     if (c) {
       // แอดมิน: ดับเบิลคลิก (หรือแตะสองครั้ง) ที่ชื่อหมวด เพื่อแก้ชื่อ
       const id = c.dataset.cat, now = Date.now();
-      if (seller && id && id !== 'none' && lastCatClick.id === id && now - lastCatClick.t < 450) { lastCatClick = { id: '', t: 0 }; renameCat(id); return; }
-      lastCatClick = { id, t: now };
-      if (c.dataset.all) cond = ''; curCat = id; render();
+      if (seller && id && id !== 'none' && lastCatClick.id === id && now - lastCatClick.t < 450) {
+        // คลิกแรกอาจพับ/กางหมวดย่อยไปแล้ว คืนค่าเดิมแล้ววาดใหม่ ก่อนเข้าโหมดแก้ชื่อ
+        if (lastCatClick.prev !== null) { closedCat = lastCatClick.prev; render(); }
+        lastCatClick = { id: '', t: 0, prev: null }; renameCat(id); return;
+      }
+      lastCatClick = { id, t: now, prev: null };
+      if (c.dataset.all) cond = '';
+      // กดหมวดหลักที่เลือกอยู่ซ้ำ = พับ/กางหมวดย่อยสลับกัน (ไม่เปลี่ยนรายการอะไหล่)
+      if (id && id === curCat && !parentOf(id) && kids(id).length) { lastCatClick.prev = closedCat; closedCat = closedCat === id ? '' : id; }
+      else { curCat = id; closedCat = ''; }
+      render();
     }
   });
   $('#side').addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.id === 'newCat') addCat(); if (e.target.id === 'newSub') addSub(); });
