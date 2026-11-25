@@ -39,34 +39,40 @@ const priceText = it => {
   return { from: hi > lo, num: fmt(lo), note: it.coming ? 'เร็วๆ นี้' : stock <= 0 ? 'สินค้าหมด' : '' };
 };
 
-// รูปตอนแชร์: รูปแรกของสินค้า + แถบขาวด้านล่าง ราคาตัวเล็กสีแดง (Facebook วาดการ์ดเอง จึงต้องใส่ราคาลงในรูป)
-const S = 1080, BAND = 130, RED = '#e0201b';
+// รูปตอนแชร์: รูปแรกของสินค้าเต็มกรอบ + ราคาสีแดงทับบนรูป (มุมซ้ายล่าง ขอบขาวบางๆ ให้อ่านออกทุกพื้น)
+// Facebook วาดการ์ดเอง จึงต้องใส่ราคาลงในรูป
+const S = 1080, RED = '#e0201b';
 const makeImage = async (src, price) => {
   const res = await fetch(src);
   if (!res.ok) throw new Error('โหลดรูปไม่ได้ ' + res.status + ' ' + src);
   const img = await loadImage(Buffer.from(await res.arrayBuffer()));
   const c = createCanvas(S, S), x = c.getContext('2d');
   x.fillStyle = '#fff'; x.fillRect(0, 0, S, S);
-  const H = price ? S - BAND : S, k = Math.min(S / img.width, H / img.height);
-  const w = img.width * k, h = img.height * k;
-  x.drawImage(img, (S - w) / 2, (H - h) / 2, w, h);
+  const k = Math.max(S / img.width, S / img.height), w = img.width * k, h = img.height * k;
+  x.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
   if (price) {
     const parts = [];
-    if (price.from) parts.push(['เริ่ม ', 46]);
-    parts.push([price.num, 76], [' บาท', 46]);
-    if (price.note) parts.push(['  · ' + price.note, 46]);
+    if (price.from) parts.push(['เริ่ม ', 56]);
+    parts.push([price.num, 96], [' บาท', 58]);
+    if (price.note) parts.push([' · ' + price.note, 56]);
     const font = n => `bold ${n}px FCV`;
-    const total = parts.reduce((t, [s, n]) => { x.font = font(n); return t + x.measureText(s).width; }, 0);
-    let px = (S - total) / 2; const base = S - BAND / 2 + 26;
-    x.fillStyle = RED;
-    for (const [s, n] of parts) { x.font = font(n); x.fillText(s, px, base); px += x.measureText(s).width; }
+    let px = 44; const base = S - 52;
+    x.lineJoin = 'round';
+    for (const [t, n] of parts) {
+      x.font = font(n);
+      x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 14; x.shadowOffsetY = 3;
+      x.lineWidth = Math.round(n / 7); x.strokeStyle = '#fff'; x.strokeText(t, px, base);
+      x.shadowColor = 'transparent';
+      x.fillStyle = RED; x.fillText(t, px, base);
+      px += x.measureText(t).width;
+    }
   }
   return c.toBuffer('image/jpeg', 86);
 };
 
 const page = (it, img, stamp) => {
   const id = it.id, link = `${SITE}/p/${id}/`, target = `/?p=${encodeURIComponent(id)}`;
-  const title = it.name;
+  const title = [it.name, it.model].filter(Boolean).join(' ');
   const desc = CONTACT;
   return `<!DOCTYPE html>
 <html lang="th"><head>
@@ -105,7 +111,7 @@ for (const it of parts) {
   const first = (it.photos || [])[0] || ((it.options || []).find(o => o.photo) || {}).photo;
   const price = priceText(it);
   // สร้างรูปใหม่เฉพาะเมื่อรูปแรกหรือราคาเปลี่ยน
-  const stamp = createHash('sha1').update(JSON.stringify([first, price, S, BAND, 2])).digest('hex').slice(0, 10);
+  const stamp = createHash('sha1').update(JSON.stringify([first, price, S, 3])).digest('hex').slice(0, 10);
   const old = existsSync(`${dir}/index.html`) ? (readFileSync(`${dir}/index.html`, 'utf8').match(/name="p2p-og" content="([^"]+)/) || [])[1] : null;
   let img = `${SITE}/favicon-192.png`;
   if (first) {
