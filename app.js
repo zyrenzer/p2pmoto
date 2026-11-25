@@ -847,8 +847,8 @@
     $('#dSeller').hidden = !seller;
     show('detail');
   };
-  // แชร์ลิงก์: เปิดลิงก์แล้วเด้งมาที่หน้ารายละเอียดของชิ้นนี้ (?p=id)
-  const partLink = it => location.origin + location.pathname + '?p=' + encodeURIComponent(it.id);
+  // แชร์ลิงก์: /p/<id>/ = หน้าแชร์ที่มีรูปแรกของสินค้า (สร้างโดย tools/build-share.mjs) แล้วเด้งมาที่หน้ารายละเอียด (?p=id)
+  const partLink = it => /^https?:$/.test(location.protocol) && location.pathname === '/' ? location.origin + '/p/' + encodeURIComponent(it.id) + '/' : location.origin + location.pathname + '?p=' + encodeURIComponent(it.id);
   const copyText = async t => {
     try { await navigator.clipboard.writeText(t); return true; } catch {}
     const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="th"><head>
+<meta charset="utf-8">
+<title>P2P Moto</title>
+<meta property="og:site_name" content="P2P Moto">
+<meta property="og:title" content="P2P Moto">
+<meta property="og:description" content="P2P Moto จำหน่ายอะไหล่แท้ DUCATI">
+<meta property="og:image" content="https://p2pmoto.com/favicon-192.png">
+<script>
+  // ลิงก์แชร์ของสินค้าใหม่ที่ยังไม่มีหน้าแชร์ (/p/<id>/) → ไปหน้าสินค้า, ที่อื่น → หน้าแรก
+  var m = location.pathname.match(/^\/p\/([0-9a-f-]{36})/i);
+  location.replace(m ? '/?p=' + m[1] : '/');
+</script>
+</head><body></body></html>
