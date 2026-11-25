@@ -1,0 +1,32 @@
+name: share-pages
+# สร้างหน้าแชร์สินค้า p/<id>/ (รูปตัวอย่างตอนแชร์ลิงก์) จากข้อมูลใน Supabase
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tools/build-share.mjs', '.github/workflows/share-pages.yml']
+permissions:
+  contents: write
+concurrency:
+  group: share-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tools/build-share.mjs
+      - name: commit if changed
+        run: |
+          git add -A p
+          if git diff --cached --quiet; then echo "ไม่มีอะไรเปลี่ยน"; exit 0; fi
+          git config user.name "p2pmoto-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "อัปเดตหน้าแชร์สินค้า"
+          git pull --rebase origin main
+          git push origin HEAD:main
