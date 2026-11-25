@@ -5,8 +5,8 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:
   push:
-    branches: [main]
-    paths: ['tools/build-share.mjs', '.github/workflows/share-pages.yml']
+    branches: [main, 'claude/**']
+    paths: ['tools/build-share.mjs', '.github/workflows/share-pages.yml', 'index.html']
 permissions:
   contents: write
 concurrency:
@@ -20,6 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: npm i --no-save --no-package-lock @napi-rs/canvas@0.1
       - run: node tools/build-share.mjs
       - name: commit if changed
         run: |
@@ -28,5 +29,5 @@ jobs:
           git config user.name "p2pmoto-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "อัปเดตหน้าแชร์สินค้า"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin HEAD:"$GITHUB_REF_NAME"
